@@ -1,7 +1,10 @@
 [
   {
-    "origin": ["http://localhost:3000", "https://digital-menu-ivory-gamma.vercel.app/"],
-    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+    "origin": [
+      "http://localhost:3000",
+      "https://digital-menu-ivory-gamma.vercel.app"
+    ],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE", "OPTIONS"],
     "responseHeader": ["Content-Type", "Authorization"],
     "maxAgeSeconds": 3600
   }
