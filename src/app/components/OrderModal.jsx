@@ -17,10 +17,11 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
   const [tableNumber, setTableNumber] = useState("");
   const [address, setAddress] = useState("");
   const [distance, setDistance] = useState("1-3");
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(""); // 👈 default blank
   const [loading, setLoading] = useState(false);
   const [deliveryCharge, setDeliveryCharge] = useState(30);
   const [totalPrice, setTotalPrice] = useState(selectedItem ? selectedItem.price : 0);
+  const [ownerName, setOwnerName] = useState("");
 
   // Track logged-in user
   useEffect(() => {
@@ -43,9 +44,21 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
     return () => unsubscribe();
   }, []);
 
+  // Fetch owner name
+  useEffect(() => {
+    async function fetchOwner() {
+      const snap = await getDoc(doc(db, "owners", ownerId));
+      if (snap.exists()) {
+        setOwnerName(snap.data().restaurantName || "Restaurant");
+      }
+    }
+    fetchOwner();
+  }, [ownerId]);
+
   // Calculate delivery charge & total
   useEffect(() => {
-    const itemTotal = selectedItem ? selectedItem.price * quantity : 0;
+    const qty = quantity ? parseInt(quantity) : 0;
+    const itemTotal = selectedItem ? selectedItem.price * qty : 0;
     let charge = 0;
     if (orderType === "outside") {
       if (distance === "1-3") charge = 30;
@@ -128,8 +141,7 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
         address: orderType === "outside" ? address : null,
         distance: orderType === "outside" ? distance : null,
         status: "pending",
-        userId: uid, 
-        // 👇 ये दो लाइनें जोड़ी गई हैं ताकि Orders कॉम्पोनेंट में डेटा डिस्प्ले हो सके।
+        userId: uid,
         fullName: fullName,
         mobile: mobile,
       };
@@ -137,7 +149,7 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
       // 1. Order को 'orders' collection mein save karo
       await addDoc(collection(db, "orders"), billData);
 
-      // 2. User के 'bills' array को update करो
+      // 2. User के 'bills' array को update karo
       if (userSnap.exists()) {
         const userData = userSnap.data();
         await updateDoc(userDocRef, {
@@ -183,7 +195,7 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
           min={1}
           placeholder="Quantity"
           value={quantity}
-          onChange={(e) => setQuantity(Number(e.target.value))}
+          onChange={(e) => setQuantity(e.target.value)}
           className="border p-2 w-full rounded text-black"
         />
 
@@ -193,7 +205,7 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           className="border p-2 w-full rounded text-black"
-          disabled={!!user}
+         
         />
         <input
           type="text"
@@ -201,7 +213,7 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
           value={mobile}
           onChange={(e) => setMobile(e.target.value)}
           className="border p-2 w-full rounded text-black"
-          disabled={!!user}
+         
         />
 
         {!user && (
@@ -281,7 +293,7 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
         )}
 
         <div className="border-t border-gray-300 pt-2 mt-2 space-y-1">
-          <p>Item Total: ₹{selectedItem ? selectedItem.price * quantity : 0}</p>
+          <p>Item Total: ₹{selectedItem && quantity ? selectedItem.price * quantity : 0}</p>
           {orderType === "outside" && <p>Delivery Charge: ₹{deliveryCharge}</p>}
           <p className="font-bold">Total: ₹{totalPrice}</p>
         </div>
@@ -296,12 +308,23 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
           </button>
           <button
             onClick={onClose}
+            disabled={loading}
             className="bg-gray-400 hover:bg-gray-500 transition-colors text-white px-4 py-2 rounded w-full font-semibold"
           >
             Cancel
           </button>
         </div>
       </div>
+
+      {/* 🔥 Full Screen Loader Overlay */}
+      {loading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-[9999]">
+          <div className="bg-white text-black px-6 py-4 rounded-xl shadow-lg flex items-center gap-3">
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="font-semibold">Placing order at 🍴 {ownerName}...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

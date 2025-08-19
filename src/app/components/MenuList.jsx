@@ -69,6 +69,7 @@ export default function MenuList({ ownerId }) {
           />
           <div className="p-4">
             <h3 className="font-semibold text-lg">{it.name}</h3>
+            <p className="font-semibold text-sm">{it.subname}</p>
             <p className="text-yellow-600 font-medium">₹{it.price}</p>
             <p className="text-sm text-gray-500">{it.category}</p>
             <div className="flex gap-2 mt-4">

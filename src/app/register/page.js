@@ -5,12 +5,13 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase/config";
 import { setDoc, doc, serverTimestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [restaurantName, setRestaurantName] = useState("");
+  const [mobile, setMobile] = useState(""); // ✅ New state
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -25,6 +26,7 @@ export default function RegisterPage() {
         ownerEmail: email,
         ownerPassword: password,
         ownerUid: uid,
+        ownerMobile: mobile, // ✅ Save mobile
         createdAt: serverTimestamp(),
       });
       setTimeout(() => {
@@ -79,6 +81,16 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full border border-gray-300 p-3 mb-4 rounded-lg focus:ring-2 focus:ring-green-400 outline-none transition"
             placeholder="Email"
+          />
+
+          {/* ✅ Mobile Number Input */}
+          <input
+            required
+            type="tel"
+            value={mobile}
+            onChange={(e) => setMobile(e.target.value)}
+            className="w-full border border-gray-300 p-3 mb-4 rounded-lg focus:ring-2 focus:ring-green-400 outline-none transition"
+            placeholder="Mobile Number"
           />
 
           <input

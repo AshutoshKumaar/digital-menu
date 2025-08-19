@@ -4,12 +4,17 @@ import { db } from "../firebase/config";
 import { collection, query, orderBy, getDocs, doc, getDoc } from "firebase/firestore";
 import { Mooli } from "next/font/google";
 import OrderModal from "./OrderModal";
+import RestaurantLoading from "./RestaurantLoading";
+import { Phone } from "lucide-react"; // 👈 top me import add karo
+
+
 
 const mooli = Mooli({ weight: "400", subsets: ["latin"] });
 
 export default function RestaurantClient({ ownerId }) {
   const [items, setItems] = useState([]);
   const [ownerName, setOwnerName] = useState("");
+  const [ownerPhone, setOwnerPhone] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true); // <-- Loading state
@@ -20,6 +25,7 @@ export default function RestaurantClient({ ownerId }) {
         const ownerSnap = await getDoc(doc(db, "owners", ownerId));
         if (ownerSnap.exists()) {
           setOwnerName(ownerSnap.data().restaurantName || "Our Restaurant");
+          setOwnerPhone(ownerSnap.data().ownerMobile || "+917079666741");
         }
 
         const q = query(
@@ -45,10 +51,7 @@ export default function RestaurantClient({ ownerId }) {
   // Loading screen
   if (loading) {
     return (
-      <div className={`flex flex-col items-center justify-center min-h-screen bg-[#1c1c1c] text-white ${mooli.className}`}>
-        <div className="w-16 h-16 border-4 border-gray-300 border-t-yellow-500 rounded-full animate-spin mb-4"></div>
-        <div className="text-gray-400 text-lg">Loading restaurant...</div>
-      </div>
+      <RestaurantLoading mooli={mooli} />
     );
   }
 
@@ -79,7 +82,7 @@ export default function RestaurantClient({ ownerId }) {
       </button>
 
       {/* Menu */}
-      <div className="max-w-3xl mx-auto space-y-10">
+      <div className="max-w-full mx-auto space-y-10">
         {items.length === 0 && (
           <div className="flex flex-col items-center justify-center h-64">
             {/* Spinner */}
@@ -107,7 +110,8 @@ export default function RestaurantClient({ ownerId }) {
                     className="bg-[#2a2a2a] p-3 rounded flex justify-between items-center flex-wrap sm:flex-nowrap"
                   >
                     <div>
-                      <span className="text-lg block">{item.name}</span>
+                      <span className="text-[16px] font-bold block">{item.name}</span>
+                      <span className="text-sm block">{item.subname}</span>
                       <span className="text-lg text-yellow-400">₹{item.price}</span>
                     </div>
                     <button
@@ -133,10 +137,17 @@ export default function RestaurantClient({ ownerId }) {
         />
       )}
 
+     
       {/* Contact */}
-      <div className="text-center mt-10 text-yellow-400 text-lg">
-        +123-456-7890
-      </div>
+<div className="text-center mt-10 text-yellow-400 text-lg">
+  <a
+    href={`tel:${ownerPhone}`}
+    className="flex items-center justify-center space-x-2 hover:text-yellow-300 transition"
+  >
+    <Phone className="w-5 h-5" />
+    <span>+{ownerPhone}</span>
+  </a>
+</div>
     </div>
   );
 }
