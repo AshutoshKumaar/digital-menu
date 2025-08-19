@@ -183,7 +183,7 @@ export default function Orders() {
       </div>
 
       {/* Action Buttons */}
-      <div className="mt-6 flex gap-2">
+      <div className="mt-6 flex flex-wrap md:flex-row gap-2">
         {order.status === "pending" && (
           <>
             <button
