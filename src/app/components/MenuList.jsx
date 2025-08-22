@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { db } from "../firebase/config";
+import { db, storage } from "../firebase/config";
 import {
   collection,
   query,
@@ -10,11 +10,21 @@ import {
   deleteDoc,
   updateDoc
 } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Search } from "lucide-react";
 
 export default function MenuList({ ownerId }) {
   const [items, setItems] = useState([]);
   const [editingItem, setEditingItem] = useState(null);
-  const [editData, setEditData] = useState({ name: "", price: "", category: "" });
+  const [editData, setEditData] = useState({
+    name: "",
+    subname: "",
+    price: "",
+    category: "",
+    imageUrl: ""
+  });
+  const [search, setSearch] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const q = query(
@@ -37,70 +47,134 @@ export default function MenuList({ ownerId }) {
     setEditingItem(item.id);
     setEditData({
       name: item.name,
+      subname: item.subname || "",
       price: item.price,
-      category: item.category || ""
+      category: item.category || "",
+      imageUrl: item.imageUrl || ""
     });
   };
 
   const handleEditSave = async () => {
-    const ref = doc(db, "owners", ownerId, "menu", editingItem);
-    await updateDoc(ref, {
+    const refDoc = doc(db, "owners", ownerId, "menu", editingItem);
+    await updateDoc(refDoc, {
       name: editData.name,
+      subname: editData.subname,
       price: Number(editData.price),
-      category: editData.category
+      category: editData.category,
+      imageUrl: editData.imageUrl
     });
     setEditingItem(null);
     alert("Updated ✅");
   };
 
-  if (!items.length) return <div className="text-gray-500 text-center text-2xl">Please add your products</div>;
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, `menuImages/${Date.now()}-${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setEditData((prev) => ({ ...prev, imageUrl: url }));
+    } catch (err) {
+      alert("Image upload failed ❌");
+    }
+    setUploading(false);
+  };
+
+  const filteredItems = items.filter((it) =>
+    it.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (!items.length)
+    return (
+      <div className="text-gray-500 text-center text-2xl">
+        Please add your products
+      </div>
+    );
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-      {items.map((it) => (
-        <div
-          key={it.id}
-          className="bg-white rounded-2xl shadow-lg overflow-hidden transform hover:scale-[1.02] transition duration-200"
-        >
-          <img
-            src={it.imageUrl}
-            alt={it.name}
-            className="h-40 w-full object-cover"
+    <div>
+      {/* 🔍 Stylish Search Bar */}
+      <div className="sticky top-0 z-40 bg-white py-3 mb-6 flex justify-center">
+        <div className="relative w-full max-w-md">
+          <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search items..."
+            className="w-full pl-10 pr-4 py-2 rounded-full border shadow focus:ring-2 focus:ring-yellow-500 transition-all"
           />
-          <div className="p-4">
-            <h3 className="font-semibold text-lg">{it.name}</h3>
-            <p className="font-semibold text-sm">{it.subname}</p>
-            <p className="text-yellow-600 font-medium">₹{it.price}</p>
-            <p className="text-sm text-gray-500">{it.category}</p>
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => handleEditClick(it)}
-                className="flex-1 bg-blue-500 text-white py-1 rounded hover:bg-blue-600 transition"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => handleDelete(it.id)}
-                className="flex-1 bg-red-500 text-white py-1 rounded hover:bg-red-600 transition"
-              >
-                Delete
-              </button>
+        </div>
+      </div>
+
+      {/* Menu Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        {filteredItems.map((it) => (
+          <div
+            key={it.id}
+            className="bg-white rounded-2xl shadow-lg overflow-hidden transform hover:scale-[1.02] transition duration-200"
+          >
+            <img
+              src={it.imageUrl}
+              alt={it.name}
+              className="h-40 w-full object-cover"
+            />
+            <div className="p-4">
+              <h3 className="font-semibold text-lg">{it.name}</h3>
+              <p className="font-semibold text-sm">{it.subname}</p>
+              <p className="text-yellow-600 font-medium">₹{it.price}</p>
+              <p className="text-sm text-gray-500">{it.category}</p>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => handleEditClick(it)}
+                  className="flex-1 bg-blue-500 text-white py-1 rounded hover:bg-blue-600 transition"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(it.id)}
+                  className="flex-1 bg-red-500 text-white py-1 rounded hover:bg-red-600 transition"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
 
-      {/* Edit Modal */}
+      {/* ✏️ Edit Modal */}
       {editingItem && (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl p-6 w-80 shadow-xl">
+          <div className="bg-white rounded-xl p-6 w-96 shadow-2xl animate-[fadeIn_0.3s_ease]">
             <h2 className="text-lg font-semibold mb-4">Edit Item</h2>
+
+            {/* Image Preview */}
+            {editData.imageUrl && (
+              <img
+                src={editData.imageUrl}
+                alt="Preview"
+                className="w-full h-40 object-cover rounded mb-3"
+              />
+            )}
+
             <input
               value={editData.name}
               onChange={(e) => setEditData({ ...editData, name: e.target.value })}
               placeholder="Item Name"
               className="w-full border p-2 rounded mb-2"
             />
+
+            <input
+              value={editData.subname}
+              onChange={(e) =>
+                setEditData({ ...editData, subname: e.target.value })
+              }
+              placeholder="Subname"
+              className="w-full border p-2 rounded mb-2"
+            />
+
             <input
               value={editData.price}
               onChange={(e) => setEditData({ ...editData, price: e.target.value })}
@@ -108,14 +182,35 @@ export default function MenuList({ ownerId }) {
               type="number"
               className="w-full border p-2 rounded mb-2"
             />
+
             <input
               value={editData.category}
               onChange={(e) =>
                 setEditData({ ...editData, category: e.target.value })
               }
               placeholder="Category"
+              className="w-full border p-2 rounded mb-2"
+            />
+
+            {/* Image URL + Upload */}
+            <input
+              value={editData.imageUrl}
+              onChange={(e) =>
+                setEditData({ ...editData, imageUrl: e.target.value })
+              }
+              placeholder="Image URL"
+              className="w-full border p-2 rounded mb-2"
+            />
+
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
               className="w-full border p-2 rounded mb-4"
             />
+
+            {uploading && <p className="text-sm text-gray-500 mb-2">Uploading...</p>}
+
             <div className="flex gap-2">
               <button
                 onClick={handleEditSave}
