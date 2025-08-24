@@ -5,9 +5,8 @@ import { collection, query, orderBy, getDocs, doc, getDoc } from "firebase/fires
 import { Mooli } from "next/font/google";
 import OrderModal from "./OrderModal";
 import RestaurantLoading from "./RestaurantLoading";
-import { Phone } from "lucide-react"; // 👈 top me import add karo
-
-
+import { Phone } from "lucide-react"; 
+import { getAnalytics, logEvent } from "firebase/analytics"; // ✅ Analytics import
 
 const mooli = Mooli({ weight: "400", subsets: ["latin"] });
 
@@ -17,7 +16,10 @@ export default function RestaurantClient({ ownerId }) {
   const [ownerPhone, setOwnerPhone] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(true); // <-- Loading state
+  const [loading, setLoading] = useState(true);
+
+  // ✅ Analytics instance
+  const analytics = typeof window !== "undefined" ? getAnalytics() : null;
 
   useEffect(() => {
     async function load() {
@@ -34,10 +36,18 @@ export default function RestaurantClient({ ownerId }) {
         );
         const snap = await getDocs(q);
         setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+        // ✅ Log page view
+        if (analytics) {
+          logEvent(analytics, "page_view", {
+            page: "restaurant_menu",
+            owner_id: ownerId,
+          });
+        }
       } catch (err) {
         console.error("Error loading menu:", err);
       } finally {
-        setLoading(false); // <-- stop loading
+        setLoading(false);
       }
     }
     load();
@@ -46,6 +56,18 @@ export default function RestaurantClient({ ownerId }) {
   const openOrderModal = (item) => {
     setSelectedItem(item);
     setShowModal(true);
+
+    // ✅ Log view_item event
+    if (analytics) {
+      logEvent(analytics, "view_item", {
+        debug_mode: true,
+        item_id: item.id,
+        item_name: item.name,
+        price: item.price,
+        category: item.category,
+        owner_id: ownerId,
+      });
+    }
   };
 
   // Loading screen
@@ -74,6 +96,11 @@ export default function RestaurantClient({ ownerId }) {
       {/* View My Orders Button */}
       <button
         onClick={() => {
+          if (analytics) {
+            logEvent(analytics, "view_my_orders", {
+              owner_id: ownerId,
+            });
+          }
           window.location.href = `/restaurant/${ownerId}/my-orders`;
         }}
         className="block mb-6 bg-yellow-500 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-400 transition cursor-pointer mx-auto"
@@ -85,9 +112,7 @@ export default function RestaurantClient({ ownerId }) {
       <div className="max-w-full mx-auto space-y-10">
         {items.length === 0 && (
           <div className="flex flex-col items-center justify-center h-64">
-            {/* Spinner */}
             <div className="w-12 h-12 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-            {/* Loading Text */}
             <div className="text-gray-500 text-lg">Loading menu items...</div>
           </div>
         )}
@@ -137,17 +162,25 @@ export default function RestaurantClient({ ownerId }) {
         />
       )}
 
-     
       {/* Contact */}
-<div className="text-center mt-10 text-yellow-400 text-lg">
-  <a
-    href={`tel:${ownerPhone}`}
-    className="flex items-center justify-center space-x-2 hover:text-yellow-300 transition"
-  >
-    <Phone className="w-5 h-5" />
-    <span>+{ownerPhone}</span>
-  </a>
-</div>
+      <div className="text-center mt-10 text-yellow-400 text-lg">
+        <a
+          href={`tel:${ownerPhone}`}
+          onClick={() => {
+            if (analytics) {
+              logEvent(analytics, "contact_call", {
+                debug_mode: true,
+                owner_id: ownerId,
+                phone: ownerPhone,
+              });
+            }
+          }}
+          className="flex items-center justify-center space-x-2 hover:text-yellow-300 transition"
+        >
+          <Phone className="w-5 h-5" />
+          <span>+{ownerPhone}</span>
+        </a>
+      </div>
     </div>
   );
 }
