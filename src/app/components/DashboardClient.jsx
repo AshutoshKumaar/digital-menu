@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import AddMenuItem from "../components/AddMenuItem";
 import DashboardTabs from "./DashboardTabs";
 
+
 export default function DashboardClient() {
   const [user, setUser] = useState(null);
   const router = useRouter();
@@ -40,6 +41,9 @@ export default function DashboardClient() {
       <section className="mb-6">
         <DashboardTabs />
       </section>
+     
+      
+      
 
       
     </div>
