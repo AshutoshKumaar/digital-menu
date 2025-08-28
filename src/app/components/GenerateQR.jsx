@@ -36,7 +36,7 @@ export default function GenerateQR({ ownerId }) {
   const generateQR = async () => {
     setLoading(true);
     try {
-      const url = `https://digital-menu-ivory-gamma.vercel.app/restaurant/${ownerId}`;
+      const url = `http://localhost:3000/${ownerId}`;
       const dataUrl = await QRCode.toDataURL(url, { width: 400, margin: 1 });
 
       // Upload to Firebase Storage

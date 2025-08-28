@@ -2,7 +2,9 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getAnalytics, logEvent } from "firebase/analytics"; // 👈 ADD THIS
+import { getAnalytics, logEvent } from "firebase/analytics"; 
+import { getMessaging } from "firebase/messaging"; // ✅ For FCM
+import { getToken } from "firebase/messaging"; // ✅ Import getToken
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -26,4 +28,35 @@ if (typeof window !== "undefined" && "measurementId" in firebaseConfig) {
   analytics = getAnalytics(app);
 }
 
-export { RecaptchaVerifier, signInWithPhoneNumber, analytics, logEvent };
+// ✅ Messaging setup (for push notifications)
+let messaging;
+if (typeof window !== "undefined") {
+  try {
+    messaging = getMessaging(app);
+  } catch (err) {
+    console.warn("Firebase Messaging not supported in this environment", err);
+  }
+}
+
+// ✅ Function to get FCM token
+export const getFCMToken = async () => {
+  if (!messaging) return null;
+
+  try {
+    const currentToken = await getToken(messaging, {
+      vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+    });
+    if (currentToken) {
+      console.log("FCM Token:", currentToken);
+      return currentToken;
+    } else {
+      console.log("No registration token available. Request permission to generate one.");
+      return null;
+    }
+  } catch (err) {
+    console.error("An error occurred while retrieving token: ", err);
+    return null;
+  }
+};
+
+export { RecaptchaVerifier, signInWithPhoneNumber, analytics, logEvent, messaging };
