@@ -5,6 +5,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import DashboardClient from "@/app/components/DashboardClient";
 import { Josefin_Sans } from "next/font/google";
 import Footer from "@/app/components/Footer";
+import useFCM from "@/app/hooks/useFCM";
 
 const josefinSans = Josefin_Sans({
   subsets: ["latin"],
@@ -12,6 +13,7 @@ const josefinSans = Josefin_Sans({
 });
 
 export default function DashboardPage() {
+  useFCM();
   const [user, setUser] = useState(null);
 
   useEffect(() => {
