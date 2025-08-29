@@ -18,17 +18,11 @@ workflows:
       - name: Build Next.js
         script: npm run build
 
-      # Export step hata diya, kyunki dynamic routes ki wajah se export fail hota hai
-      # - name: Export static files
-      #   script: npm run export
-
       - name: Install Capacitor
         script: |
           npm install @capacitor/core @capacitor/cli
 
-      - name: Add Android platform
-        script: npx cap add android
-
+      # "Add Android platform" hata diya
       - name: Sync Capacitor
         script: npx cap sync android
 
