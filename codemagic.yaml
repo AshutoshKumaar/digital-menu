@@ -3,14 +3,14 @@ workflows:
     name: Build Next.js Android APK
     max_build_duration: 60
     instance_type: mac_mini_m1
-
+    
     environment:
       node: 20
       groups:
         - c
       vars:
         PACKAGE_NAME: "com.digitalmenu.app"
-
+    
     scripts:
       - name: Install dependencies
         script: npm install
@@ -18,15 +18,13 @@ workflows:
       - name: Build Next.js
         script: npm run build
 
-      # ❌ Agar tu `npm run export` karega to dynamic pages fail karenge
-      #    Isko hata dena agar Next.js app me dynamic routes hain.
+      # Export step hata diya, kyunki dynamic routes ki wajah se export fail hota hai
       # - name: Export static files
       #   script: npm run export
 
       - name: Install Capacitor
         script: |
           npm install @capacitor/core @capacitor/cli
-          npx cap init "DigitalMenu" $PACKAGE_NAME --web-dir=.next
 
       - name: Add Android platform
         script: npx cap add android
