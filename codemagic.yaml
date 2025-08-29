@@ -5,10 +5,9 @@ workflows:
     instance_type: mac_mini_m1
 
     environment:
-      node: 18
+      node: 20
       groups:
-        - c   
-
+        - firebase-config
       vars:
         PACKAGE_NAME: "com.digitalmenu.app"
 
@@ -16,8 +15,13 @@ workflows:
       - name: Install dependencies
         script: npm install
 
-      - name: Build Next.js (server mode, no export)
+      - name: Build Next.js
         script: npm run build
+
+      # ❌ Agar tu `npm run export` karega to dynamic pages fail karenge
+      #    Isko hata dena agar Next.js app me dynamic routes hain.
+      # - name: Export static files
+      #   script: npm run export
 
       - name: Install Capacitor
         script: |
