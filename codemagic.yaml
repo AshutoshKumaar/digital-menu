@@ -6,7 +6,6 @@ workflows:
     
     environment:
       node: 18
-      npm: true
       vars:
         PACKAGE_NAME: "com.digitalmenu.app"
     
