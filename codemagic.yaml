@@ -7,7 +7,7 @@ workflows:
     environment:
       node: 20
       groups:
-        - firebase-config
+        - c
       vars:
         PACKAGE_NAME: "com.digitalmenu.app"
 
