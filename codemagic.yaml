@@ -3,26 +3,26 @@ workflows:
     name: Build Next.js Android APK
     max_build_duration: 60
     instance_type: mac_mini_m1
-    
+
     environment:
       node: 18
+      groups:
+        - c   
+
       vars:
         PACKAGE_NAME: "com.digitalmenu.app"
-    
+
     scripts:
       - name: Install dependencies
         script: npm install
 
-      - name: Build Next.js
+      - name: Build Next.js (server mode, no export)
         script: npm run build
-
-      - name: Export static files
-        script: npm run export
 
       - name: Install Capacitor
         script: |
           npm install @capacitor/core @capacitor/cli
-          npx cap init "DigitalMenu" $PACKAGE_NAME --web-dir=out
+          npx cap init "DigitalMenu" $PACKAGE_NAME --web-dir=.next
 
       - name: Add Android platform
         script: npx cap add android
