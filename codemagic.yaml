@@ -3,14 +3,14 @@ workflows:
     name: Build Next.js Android APK
     max_build_duration: 60
     instance_type: mac_mini_m1
-    
+
     environment:
       node: 20
       groups:
         - c
       vars:
         PACKAGE_NAME: "com.digitalmenu.app"
-    
+
     scripts:
       - name: Install dependencies
         script: npm install
@@ -25,17 +25,25 @@ workflows:
       - name: Sync Capacitor
         script: npx cap sync android
 
-      # ✅ Patch variables.gradle to avoid gradle:null error
       - name: Patch variables.gradle
         script: |
-            echo "ext {" > android/variables.gradle
-            echo "    minSdkVersion = 23" >> android/variables.gradle
-            echo "    compileSdkVersion = 35" >> android/variables.gradle
-            echo "    targetSdkVersion = 35" >> android/variables.gradle
-            echo "    gradlePluginVersion = '8.7.2'" >> android/variables.gradle
-            echo "    androidxAppCompatVersion = '1.7.0'" >> android/variables.gradle
-            echo "    cordovaAndroidVersion = '10.1.1'" >> android/variables.gradle
-            echo "}" >> android/variables.gradle
+          echo "ext {" > android/variables.gradle
+          echo "    minSdkVersion = 23" >> android/variables.gradle
+          echo "    compileSdkVersion = 35" >> android/variables.gradle
+          echo "    targetSdkVersion = 35" >> android/variables.gradle
+          echo "    gradlePluginVersion = '8.7.2'" >> android/variables.gradle
+
+          # AndroidX versions
+          echo "    androidxAppCompatVersion = '1.7.0'" >> android/variables.gradle
+          echo "    androidxCoordinatorLayoutVersion = '1.2.0'" >> android/variables.gradle
+          echo "    androidxCoreVersion = '1.13.1'" >> android/variables.gradle
+          echo "    androidxMaterialVersion = '1.12.0'" >> android/variables.gradle
+          echo "    androidxBrowserVersion = '1.8.0'" >> android/variables.gradle
+          echo "    androidxExifInterfaceVersion = '1.3.7'" >> android/variables.gradle
+
+          # Cordova
+          echo "    cordovaAndroidVersion = '10.1.1'" >> android/variables.gradle
+          echo "}" >> android/variables.gradle
 
       - name: Clean Android build
         script: |
