@@ -22,10 +22,18 @@ workflows:
         script: |
           npm install @capacitor/core @capacitor/cli
 
-      # "Add Android platform" hata diya
       - name: Sync Capacitor
         script: npx cap sync android
 
+      # ✅ Patch variables.gradle to avoid gradle:null error
+      - name: Patch variables.gradle
+        script: |
+          echo "ext {" > android/variables.gradle
+          echo "    minSdkVersion = 23" >> android/variables.gradle
+          echo "    compileSdkVersion = 35" >> android/variables.gradle
+          echo "    targetSdkVersion = 35" >> android/variables.gradle
+          echo "    gradlePluginVersion = '8.7.2'" >> android/variables.gradle
+          echo "}" >> android/variables.gradle
 
       - name: Clean Android build
         script: |
@@ -37,9 +45,7 @@ workflows:
         script: |
           cd android
           chmod +x ./gradlew
-          ./gradlew clean
           ./gradlew assembleDebug
-
 
     artifacts:
       - android/app/build/outputs/**/*.apk
