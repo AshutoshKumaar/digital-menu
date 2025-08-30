@@ -3,14 +3,15 @@ workflows:
     name: Build Next.js Android APK
     max_build_duration: 60
     instance_type: mac_mini_m1
-
+    
     environment:
+      
       node: 20
       groups:
         - c
       vars:
         PACKAGE_NAME: "com.digitalmenu.app"
-
+    
     scripts:
       - name: Install dependencies
         script: npm install
@@ -22,47 +23,13 @@ workflows:
         script: |
           npm install @capacitor/core @capacitor/cli
 
+      # "Add Android platform" hata diya
       - name: Sync Capacitor
         script: npx cap sync android
-
-      - name: Patch variables.gradle
-        script: |
-          cat > android/variables.gradle << EOL
-          ext {
-              minSdkVersion = 23
-              compileSdkVersion = 35
-              targetSdkVersion = 35
-              gradlePluginVersion = '8.7.2'
-
-              // AndroidX
-              androidxAppCompatVersion = '1.7.0'
-              androidxCoordinatorLayoutVersion = '1.2.0'
-              androidxCoreVersion = '1.13.1'
-              androidxMaterialVersion = '1.12.0'
-              androidxBrowserVersion = '1.8.0'
-              androidxExifInterfaceVersion = '1.3.7'
-              coreSplashScreenVersion = '1.0.1'
-              
-
-              // Cordova
-              cordovaAndroidVersion = '10.1.1'
-
-              // Optional common
-              androidxActivityVersion = '1.9.0'
-              androidxFragmentVersion = '1.6.2'
-              androidxLifecycleVersion = '2.7.0'
-              androidxRecyclerViewVersion = '1.3.2'
-              androidxWebkitVersion = '1.9.0'
-
-              // test-libs
-              junitVersion = '4.13.2'
-          }
-          EOL
 
       - name: Build Android APK
         script: |
           cd android
-          chmod +x ./gradlew
           ./gradlew assembleDebug
 
     artifacts:
