@@ -28,12 +28,14 @@ workflows:
       # ✅ Patch variables.gradle to avoid gradle:null error
       - name: Patch variables.gradle
         script: |
-          echo "ext {" > android/variables.gradle
-          echo "    minSdkVersion = 23" >> android/variables.gradle
-          echo "    compileSdkVersion = 35" >> android/variables.gradle
-          echo "    targetSdkVersion = 35" >> android/variables.gradle
-          echo "    gradlePluginVersion = '8.7.2'" >> android/variables.gradle
-          echo "}" >> android/variables.gradle
+            echo "ext {" > android/variables.gradle
+            echo "    minSdkVersion = 23" >> android/variables.gradle
+            echo "    compileSdkVersion = 35" >> android/variables.gradle
+            echo "    targetSdkVersion = 35" >> android/variables.gradle
+            echo "    gradlePluginVersion = '8.7.2'" >> android/variables.gradle
+            echo "    androidxAppCompatVersion = '1.7.0'" >> android/variables.gradle
+            echo "    cordovaAndroidVersion = '10.1.1'" >> android/variables.gradle
+            echo "}" >> android/variables.gradle
 
       - name: Clean Android build
         script: |
