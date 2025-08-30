@@ -6,8 +6,8 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // Hardcoded Android Gradle Plugin version
         classpath 'com.android.tools.build:gradle:8.1.1'
+        // Hardcoded Android Gradle Plugin version
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0"
     }
 }
