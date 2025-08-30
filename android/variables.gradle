@@ -16,10 +16,13 @@ ext {
     // Cordova
     cordovaAndroidVersion = '10.1.1'
 
-    // Optional (kabhi-kabhi use hota hai)
+    // Optional common libs
     androidxActivityVersion = '1.9.0'
     androidxFragmentVersion = '1.6.2'
     androidxLifecycleVersion = '2.7.0'
     androidxRecyclerViewVersion = '1.3.2'
     androidxWebkitVersion = '1.9.0'
+
+    // ✅ Test libs
+    junitVersion = '4.13.2'
 }
