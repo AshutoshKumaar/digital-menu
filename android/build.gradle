@@ -1,20 +1,23 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 buildscript {
-    
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
+        // Android Gradle Plugin (AGP) – compatible with Gradle 8.11
         classpath 'com.android.tools.build:gradle:8.7.2'
+
+        // Google Services (for Firebase etc.)
         classpath 'com.google.gms:google-services:4.4.2'
 
-        // NOTE: Do not place your application dependencies here; they belong
-        // in the individual module build.gradle files
+        // ✅ Add Kotlin Gradle Plugin (needed for Capacitor/Firebase)
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24"
     }
 }
 
+// load capacitor/variables if needed
 apply from: "variables.gradle"
 
 allprojects {
@@ -24,6 +27,6 @@ allprojects {
     }
 }
 
-task clean(type: Delete) {
+tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
