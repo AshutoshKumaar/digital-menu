@@ -59,13 +59,6 @@ workflows:
           }
           EOL
 
-
-      - name: Clean Android build
-        script: |
-          cd android
-          chmod +x ./gradlew
-          ./gradlew clean
-
       - name: Build Android APK
         script: |
           cd android
