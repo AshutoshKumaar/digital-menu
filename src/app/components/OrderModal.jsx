@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc, collection, addDoc } from "firebase/firestore";
+import PaymentSection from "./PaymentSection";
 
 export default function OrderModal({ ownerId, selectedItem, onClose }) {
   const [user, setUser] = useState(null);
@@ -227,13 +228,16 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
             />
             <input
               type="password"
-              placeholder="Password"
+              placeholder="Enter New Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="border p-2 w-full rounded text-black"
             />
           </>
         )}
+        <div>
+          <PaymentSection amount={totalPrice} />
+        </div>
 
         <div className="flex gap-6 items-center">
           <label className="flex items-center gap-2">
