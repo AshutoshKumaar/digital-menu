@@ -23,6 +23,8 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
   const [deliveryCharge, setDeliveryCharge] = useState(30);
   const [totalPrice, setTotalPrice] = useState(selectedItem ? selectedItem.price : 0);
   const [ownerName, setOwnerName] = useState("");
+  const [ownerData, setOwnerData] = useState(null);
+  console.log("ownerData:", ownerData);
 
   // Track logged-in user
   useEffect(() => {
@@ -32,6 +34,7 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
         setEmail(u.email);
 
         const userDocRef = doc(db, "users", u.uid);
+        // const ownerDocRef = doc(db, "owners", ownerId);
         const userSnap = await getDoc(userDocRef);
         if (userSnap.exists()) {
           const data = userSnap.data();
@@ -49,8 +52,10 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
   useEffect(() => {
     async function fetchOwner() {
       const snap = await getDoc(doc(db, "owners", ownerId));
+      const data = snap.data();
       if (snap.exists()) {
         setOwnerName(snap.data().restaurantName || "Restaurant");
+        setOwnerData(data.paymentSettings?.[0] || null);
       }
     }
     fetchOwner();
@@ -71,112 +76,120 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
     setTotalPrice(itemTotal + charge);
   }, [quantity, distance, selectedItem, orderType]);
 
-  const placeOrder = async () => {
-    if (!fullName || !mobile) {
-      alert("Please fill all fields");
-      return;
-    }
+ const placeOrder = async (paymentMode = "cod") => {
+  // Validate fields first
+  if (!fullName || !mobile) {
+    alert("Please fill all fields");
+    return;
+  }
 
-    if (!user && (!email || !password)) {
-      alert("Please fill email and password");
-      return;
-    }
+  if (!user && (!email || !password)) {
+    alert("Please fill email and password");
+    return;
+  }
 
-    if (orderType === "inside" && !tableNumber) {
-      alert("Please enter table number");
-      return;
-    }
+  if (orderType === "inside" && !tableNumber) {
+    alert("Please enter table number");
+    return;
+  }
 
-    if (orderType === "outside" && !address) {
-      alert("Please enter your address");
-      return;
-    }
+  if (orderType === "outside" && !address) {
+    alert("Please enter your address");
+    return;
+  }
 
-    if (!quantity || quantity < 1) {
-      alert("Please enter valid quantity");
-      return;
-    }
+  if (!quantity || quantity < 1) {
+    alert("Please enter valid quantity");
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      let userCred;
-      if (!user) {
-        try {
-          userCred = await createUserWithEmailAndPassword(auth, email, password);
-        } catch (err) {
-          if (err.code === "auth/email-already-in-use") {
-            userCred = await signInWithEmailAndPassword(auth, email, password);
-          } else {
-            throw err;
-          }
+  try {
+    // Authenticate or register user
+    let userCred;
+    if (!user) {
+      try {
+        userCred = await createUserWithEmailAndPassword(auth, email, password);
+      } catch (err) {
+        if (err.code === "auth/email-already-in-use") {
+          userCred = await signInWithEmailAndPassword(auth, email, password);
+        } else {
+          throw err;
         }
-      } else {
-        userCred = { user };
       }
-
-      const uid = userCred.user.uid;
-      const userDocRef = doc(db, "users", uid);
-      const userSnap = await getDoc(userDocRef);
-
-      const billData = {
-        createdAt: new Date(),
-        ownerId: ownerId,
-        orderDetails: {
-          items: [
-            {
-              id: selectedItem.id,
-              name: selectedItem.name,
-              price: selectedItem.price,
-              category: selectedItem.category || "",
-              quantity,
-              totalPrice: selectedItem.price * quantity,
-            },
-          ],
-          subtotal: selectedItem.price * quantity,
-          deliveryCharge: orderType === "outside" ? deliveryCharge : 0,
-          total: totalPrice,
-        },
-        orderType,
-        tableNumber: orderType === "inside" ? tableNumber : null,
-        address: orderType === "outside" ? address : null,
-        distance: orderType === "outside" ? distance : null,
-        status: "pending",
-        userId: uid,
-        fullName: fullName,
-        mobile: mobile,
-      };
-
-      // 1. Order को 'orders' collection mein save karo
-      await addDoc(collection(db, "orders"), billData);
-
-      // 2. User के 'bills' array को update karo
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        await updateDoc(userDocRef, {
-          bills: [...(userData.bills || []), billData],
-          fullName,
-          mobile,
-        });
-      } else {
-        await setDoc(userDocRef, {
-          fullName,
-          mobile,
-          email,
-          uid,
-          bills: [billData],
-        });
-      }
-
-      alert("Order placed successfully!");
-      onClose();
-    } catch (err) {
-      console.error(err);
-      alert(err.message || "Failed to place order");
+    } else {
+      userCred = { user };
     }
 
-    setLoading(false);
-  };
+    const uid = userCred.user.uid;
+    const userDocRef = doc(db, "users", uid);
+    const userSnap = await getDoc(userDocRef);
+
+    // Prepare order data
+    const billData = {
+      createdAt: new Date(),
+      ownerId: ownerId,
+      orderDetails: {
+        items: [
+          {
+            id: selectedItem.id,
+            name: selectedItem.name,
+            price: selectedItem.price,
+            category: selectedItem.category || "",
+            quantity,
+            totalPrice: selectedItem.price * quantity,
+          },
+        ],
+        subtotal: selectedItem.price * quantity,
+        deliveryCharge: orderType === "outside" ? deliveryCharge : 0,
+        total: totalPrice,
+      },
+      orderType,
+      tableNumber: orderType === "inside" ? tableNumber : null,
+      address: orderType === "outside" ? address : null,
+      distance: orderType === "outside" ? distance : null,
+      status: paymentMode === "prepaid" ? "paid" : "pending", // prepaid => paid, COD => pending
+      paymentMode, // store whether it's "prepaid" or "cod"
+      userId: uid,
+      fullName,
+      mobile,
+    };
+
+    // 1. Save order to 'orders' collection
+    await addDoc(collection(db, "orders"), billData);
+
+    // 2. Update user's bills array
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      await updateDoc(userDocRef, {
+        bills: [...(userData.bills || []), billData],
+        fullName,
+        mobile,
+      });
+    } else {
+      await setDoc(userDocRef, {
+        fullName,
+        mobile,
+        email,
+        uid,
+        bills: [billData],
+      });
+    }
+
+    alert(
+      paymentMode === "prepaid"
+        ? "Order placed successfully after payment!"
+        : "Order placed successfully (Cash on Delivery)!"
+    );
+    onClose();
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Failed to place order");
+  }
+
+  setLoading(false);
+};
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 p-4">
@@ -236,7 +249,12 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
           </>
         )}
         <div>
-          <PaymentSection amount={totalPrice} />
+          <PaymentSection 
+          amount={totalPrice}  
+          ownerData={ownerData} 
+          onPaymentSuccess={() => placeOrder("prepaid")} 
+          onCOD={() => placeOrder("cod")}
+           />
         </div>
 
         <div className="flex gap-6 items-center">
@@ -267,7 +285,7 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
         {orderType === "inside" && (
           <input
             type="text"
-            placeholder="Table Number"
+            placeholder="Table Number (e.g., A1, B2, etc.)"
             value={tableNumber}
             onChange={(e) => setTableNumber(e.target.value)}
             className="border p-2 w-full rounded text-black"

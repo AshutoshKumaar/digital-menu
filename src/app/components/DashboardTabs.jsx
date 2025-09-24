@@ -6,6 +6,7 @@ import { auth } from "../firebase/config";
 import Orders from "./Orders";
 import GenerateQR from "./GenerateQR";
 import OurInfo from "./OurInfo";
+import PaymentSettings from "./PaymentSettings";
 
 // Placeholder components (replace with real ones)
 function OurMenu() {
@@ -27,6 +28,11 @@ function OurInfoSection() {
   return <div className="p-4 text-black"><OurInfo ownerId={ownerId} /></div>;
 }
 
+function PaymentSettingsSection() {
+  const ownerId = auth.currentUser?.uid;
+  return <div className="p-4 text-black"><PaymentSettings ownerId={ownerId} /></div>;
+}
+
 export default function DashboardTabs() {
   const [activeTab, setActiveTab] = useState("Our Menu");
 
@@ -35,6 +41,7 @@ export default function DashboardTabs() {
     { label: "Orders", component: <OrdersSection  /> },
     { label: "Generate QR", component: <GenerateQRCode /> },
     { label: "Our Info", component: <OurInfoSection /> },
+    { label: "Payment Settings", component: <PaymentSettingsSection /> }
   ];
 
   return (
