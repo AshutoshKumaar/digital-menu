@@ -24,7 +24,7 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
   const [totalPrice, setTotalPrice] = useState(selectedItem ? selectedItem.price : 0);
   const [ownerName, setOwnerName] = useState("");
   const [ownerData, setOwnerData] = useState(null);
-  console.log("ownerData:", ownerData);
+  // console.log("ownerData:", ownerData);
 
   // Track logged-in user
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
       const data = snap.data();
       if (snap.exists()) {
         setOwnerName(snap.data().restaurantName || "Restaurant");
-        setOwnerData(data.paymentSettings?.[0] || null);
+        // setOwnerData(data.paymentSettings?.[0] || null);
       }
     }
     fetchOwner();
@@ -76,7 +76,7 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
     setTotalPrice(itemTotal + charge);
   }, [quantity, distance, selectedItem, orderType]);
 
- const placeOrder = async (paymentMode = "cod") => {
+ const placeOrder = async () => {
   // Validate fields first
   if (!fullName || !mobile) {
     alert("Please fill all fields");
@@ -149,8 +149,6 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
       tableNumber: orderType === "inside" ? tableNumber : null,
       address: orderType === "outside" ? address : null,
       distance: orderType === "outside" ? distance : null,
-      status: paymentMode === "prepaid" ? "paid" : "pending", // prepaid => paid, COD => pending
-      paymentMode, // store whether it's "prepaid" or "cod"
       userId: uid,
       fullName,
       mobile,
@@ -177,11 +175,7 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
       });
     }
 
-    alert(
-      paymentMode === "prepaid"
-        ? "Order placed successfully after payment!"
-        : "Order placed successfully (Cash on Delivery)!"
-    );
+   
     onClose();
   } catch (err) {
     console.error(err);
@@ -248,14 +242,14 @@ export default function OrderModal({ ownerId, selectedItem, onClose }) {
             />
           </>
         )}
-        <div>
+        {/* <div>
           <PaymentSection 
           amount={totalPrice}  
           ownerData={ownerData} 
           onPaymentSuccess={() => placeOrder("prepaid")} 
           onCOD={() => placeOrder("cod")}
            />
-        </div>
+        </div> */}
 
         <div className="flex gap-6 items-center">
           <label className="flex items-center gap-2">
