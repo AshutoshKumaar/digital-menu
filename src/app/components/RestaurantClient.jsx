@@ -11,9 +11,10 @@ import {
 } from "firebase/firestore";
 import { Mooli } from "next/font/google";
 import RestaurantLoading from "./RestaurantLoading";
-import { Phone, ShoppingCart, List } from "lucide-react";
+import { Phone } from "lucide-react";
 import { getAnalytics, logEvent } from "firebase/analytics";
 import { useCart } from "../hooks/CartContext";
+import BottomNav from "./FixBottom";
 
 const mooli = Mooli({ weight: "400", subsets: ["latin"] });
 
@@ -25,24 +26,38 @@ export default function RestaurantClient({ ownerId }) {
   const [ownerPhone, setOwnerPhone] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [orderingEnabled, setOrderingEnabled] = useState(true); // new
 
   const analytics = typeof window !== "undefined" ? getAnalytics() : null;
 
   useEffect(() => {
     async function load() {
       try {
+        // 1️⃣ Fetch owner info
         const ownerSnap = await getDoc(doc(db, "owners", ownerId));
         if (ownerSnap.exists()) {
           setOwnerName(ownerSnap.data().restaurantName || "Our Restaurant");
           setOwnerPhone(ownerSnap.data().ownerMobile || "+917079666741");
         }
 
+        // 2️⃣ Fetch menu items
         const q = query(
           collection(db, "owners", ownerId, "menu"),
           orderBy("createdAt", "desc")
         );
         const snap = await getDocs(q);
         setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+        // 3️⃣ Fetch ordering status from owner/settings/systemStatus
+        const statusSnap = await getDoc(
+          doc(db, "owners", ownerId, "settings", "systemStatus")
+        );
+        if (statusSnap.exists()) {
+          setOrderingEnabled(statusSnap.data().orderingEnabled);
+        } else {
+          // default true if not exists
+          setOrderingEnabled(true);
+        }
 
         if (analytics) {
           logEvent(analytics, "page_view", {
@@ -59,7 +74,6 @@ export default function RestaurantClient({ ownerId }) {
     load();
   }, [ownerId]);
 
-  // ✅ Categories
   const categories = [
     "all",
     ...new Set(items.map((item) => item.category || "Uncategorized")),
@@ -74,7 +88,6 @@ export default function RestaurantClient({ ownerId }) {
     return <RestaurantLoading mooli={mooli} />;
   }
 
-  // ✅ Show toast message
   const showMessage = (msg) => {
     const div = document.createElement("div");
     div.innerText = msg;
@@ -100,7 +113,7 @@ export default function RestaurantClient({ ownerId }) {
         <div className="mt-2 w-24 mx-auto border-b-4 border-yellow-500"></div>
       </div>
 
-      {/* ✅ Category Filter */}
+      {/* Category Filter */}
       <div className="flex justify-center mb-10">
         <div className="relative inline-block w-64">
           <select
@@ -133,18 +146,14 @@ export default function RestaurantClient({ ownerId }) {
         </div>
       </div>
 
-      {/* Menu Items with Category Heading */}
+      {/* Menu Items */}
       <div className="max-w-full mx-auto space-y-10">
         {Object.keys(
-          filteredItems.reduce(
-            (acc, it) => ({ ...acc, [it.category]: true }),
-            {}
-          )
+          filteredItems.reduce((acc, it) => ({ ...acc, [it.category]: true }), {})
         ).map((cat) => {
           const catItems = filteredItems.filter((i) => i.category === cat);
           return (
             <div key={cat}>
-              {/* ✅ Category Heading */}
               <div className="flex items-center mb-4 flex-wrap">
                 <span className="bg-yellow-500 text-black font-bold px-4 py-1 rounded-full uppercase shadow-md text-sm sm:text-base">
                   {cat}
@@ -152,7 +161,6 @@ export default function RestaurantClient({ ownerId }) {
                 <div className="flex-1 border-b-1 border-gray-600 ml-3"></div>
               </div>
 
-              {/* ✅ Items under this category */}
               <div className="space-y-4">
                 {catItems.map((item) => (
                   <div
@@ -163,25 +171,65 @@ export default function RestaurantClient({ ownerId }) {
                       <span className="text-[18px] font-bold block capitalize">
                         {item.name}
                       </span>
-                      <span className="text-sm block capitalize">
-                        {item.subname}
-                      </span>
-                      <span className="text-lg text-yellow-400">
-                        ₹{item.price}
-                      </span>
+                      <span className="text-sm block capitalize">{item.subname}</span>
+                      <span className="text-lg text-yellow-400">₹{item.price}</span>
                     </div>
 
-                    {/* Add to Cart with Quantity comment this section */}
-                  
+                    {/* ✅ Only show Add to Cart if ordering is enabled */}
+                    {orderingEnabled && (
+                      <div className="flex items-center justify-center space-x-2 py-2">
+                        <input
+                          type="number"
+                          min="1"
+                          defaultValue="1"
+                          id={`qty-${item.id}`}
+                          className="w-16 h-10 bg-[#1c1c1c] border border-gray-500 text-center text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                        />
+                        {cart.find((c) => c.id === item.id) ? (
+                          <button
+                            disabled
+                            className="h-10 px-5 bg-green-600 text-white font-semibold rounded-lg shadow-md opacity-80 cursor-not-allowed"
+                          >
+                            ✅ Added
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              const qty =
+                                parseInt(
+                                  document.getElementById(`qty-${item.id}`).value
+                                ) || 1;
+                              addToCart({
+                                id: item.id,
+                                name: item.name,
+                                price: item.price,
+                                quantity: qty,
+                              });
+                              const div = document.createElement("div");
+                              div.innerText = `"${item.name}" added to cart`;
+                              div.className =
+                                "fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50";
+                              document.body.appendChild(div);
+                              setTimeout(() => div.remove(), 2000);
+                            }}
+                            className="h-10 px-5 bg-yellow-500 text-black font-semibold rounded-lg shadow-md hover:opacity-90 active:scale-95 transition"
+                          >
+                            🛒 Add
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
           );
-        })}</div>
+        })}
+      </div>
 
-      {/* ✅ Fixed Bottom Menu  also commnet this section*/}
-     
+      {/* ✅ Only show BottomNav if ordering is enabled */}
+      {orderingEnabled && <BottomNav ownerId={ownerId} cart={cart} />}
+
       {/* Contact */}
       <div className="text-center mt-10 mb-0 text-yellow-400 text-lg">
         <a

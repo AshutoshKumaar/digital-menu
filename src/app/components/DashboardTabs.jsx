@@ -6,7 +6,7 @@ import { auth } from "../firebase/config";
 import Orders from "./Orders";
 import GenerateQR from "./GenerateQR";
 import OurInfo from "./OurInfo";
-import PaymentSettings from "./PaymentSettings";
+import OwnerSystemToggle from "./PaymentSettings";
 
 // Placeholder components (replace with real ones)
 function OurMenu() {
@@ -30,7 +30,7 @@ function OurInfoSection() {
 
 function PaymentSettingsSection() {
   const ownerId = auth.currentUser?.uid;
-  return <div className="p-4 text-black"><PaymentSettings ownerId={ownerId} /></div>;
+  return <div className="p-4 text-black"><OwnerSystemToggle  /></div>;
 }
 
 export default function DashboardTabs() {
@@ -41,7 +41,7 @@ export default function DashboardTabs() {
     { label: "Orders", component: <OrdersSection  /> },
     { label: "Generate QR", component: <GenerateQRCode /> },
     { label: "Our Info", component: <OurInfoSection /> },
-    { label: "Payment Settings", component: <PaymentSettingsSection /> }
+    { label: "Settings", component: <OwnerSystemToggle /> }
   ];
 
   return (

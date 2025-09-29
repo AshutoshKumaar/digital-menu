@@ -1,0 +1,33 @@
+"use client";
+import { List, ShoppingCart } from "lucide-react";
+
+export default function BottomNav({ ownerId, cart }) {
+  return (
+    <div className="fixed bottom-0 left-0 w-full bg-[#2a2a2a] border-t border-gray-700 flex justify-around py-3 z-50">
+      {/* My Orders */}
+      <button
+        onClick={() =>
+          (window.location.href = `/restaurant/${ownerId}/my-orders`)
+        }
+        className="flex flex-col items-center text-yellow-400 hover:text-yellow-300"
+      >
+        <List className="w-6 h-6" />
+        <span className="text-xs">Orders</span>
+      </button>
+
+      {/* Cart */}
+      <button
+        onClick={() => (window.location.href = `/restaurant/${ownerId}/cart`)}
+        className="relative flex flex-col items-center text-yellow-400 hover:text-yellow-300"
+      >
+        <ShoppingCart className="w-6 h-6" />
+        <span className="text-xs">Cart</span>
+        {cart.length > 0 && (
+          <span className="absolute -top-1 right-3 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+            {cart.length}
+          </span>
+        )}
+      </button>
+    </div>
+  );
+}

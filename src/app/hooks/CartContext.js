@@ -52,6 +52,7 @@ export function CartProvider({ children }) {
   // ✅ Clear cart (for order confirm case)
   const clearCart = () => {
     setCart([]);
+    localStorage.removeItem("cart");
   };
 
   return (
