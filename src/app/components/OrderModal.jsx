@@ -17,6 +17,7 @@ import { getUserId } from "../utils/getUserId";
 import LoadingScreen from "./Loadingscreen";
 import BottomNav from "./FixBottom";
 import OrderSuccessModal from "./SucessMsg";
+import { addRewardOnOrder } from "../utils/AddRewardOnOrder";
 const mooli = Mooli({ weight: "400", subsets: ["latin"] });
 
 export default function CheckoutClient({ ownerId }) {
@@ -37,6 +38,9 @@ export default function CheckoutClient({ ownerId }) {
 
   const { cart, clearCart } = useCart();
   const subtotal = cart.reduce((acc, item) => acc + item.totalPrice, 0);
+  const [rewardMessage, setRewardMessage] = useState("");
+  const [reward, setReward] = useState(null);
+
   const router = useRouter();
 
   useEffect(() => {
@@ -79,13 +83,25 @@ export default function CheckoutClient({ ownerId }) {
 
       const docRef = await addDoc(collection(db, "orders"), newOrder);
       console.log("✅ Order placed with ID:", docRef.id);
+      // Add reward
+      const rewardData = await addRewardOnOrder(docRef.id);
+      setReward(rewardData);
+      console.log("🎁 Reward Earned:", rewardData);
 
       // Clear form and cart
-      setFormData({ name: "", number: "", table: "", address: "", city: "", pincode: "" });
+      setFormData({
+        name: "",
+        number: "",
+        table: "",
+        address: "",
+        city: "",
+        pincode: "",
+      });
       clearCart();
 
       // Show modal
       setModalOpen(true);
+      setRewardMessage(`🎉 Congratulations! You earned ₹${rewardData.rupees} and ${rewardData.coins} coins 🎁`);
     } catch (err) {
       console.error("❌ Firestore Error:", err.message);
     } finally {
@@ -325,14 +341,15 @@ export default function CheckoutClient({ ownerId }) {
 
       {/* Modal */}
       <OrderSuccessModal
-        show={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          router.push(`/restaurant/${ownerId}`);
-        }}
-        message="Your order has been placed successfully!"
-      />
-
+  show={modalOpen}
+  onClose={() => {
+    setModalOpen(false);
+    router.push(`/restaurant/${ownerId}`);
+  }}
+  message={rewardMessage}
+  rupees={reward?.rupees}
+  coins={reward?.coins}
+/>
       <BottomNav ownerId={ownerId} cart={cart} />
     </div>
   );

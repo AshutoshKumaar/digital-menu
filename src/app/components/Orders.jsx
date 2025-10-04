@@ -1,8 +1,17 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  updateDoc,
+  deleteDoc,
+} from "firebase/firestore";
 import { db, auth } from "../firebase/config";
 import { onAuthStateChanged } from "firebase/auth";
+import { updateRewardOnStatusChange } from "../utils/updateRewardOnStatusChange";
 
 export default function OwnerOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -32,7 +41,10 @@ export default function OwnerOrdersPage() {
     const unsubscribe = onSnapshot(
       ordersQuery,
       (snapshot) => {
-        const ordersList = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const ordersList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setOrders(ordersList);
         setLoading(false);
       },
@@ -45,10 +57,11 @@ export default function OwnerOrdersPage() {
     return () => unsubscribe();
   }, [user]);
 
-  const updateOrderStatus = async (orderId, status) => {
+  const updateOrderStatus = async (orderId, status, userId) => {
     try {
       const orderRef = doc(db, "orders", orderId);
       await updateDoc(orderRef, { status });
+      await updateRewardOnStatusChange(orderId, status, userId);
     } catch (error) {
       console.error("Error updating status:", error);
     }
@@ -85,7 +98,9 @@ export default function OwnerOrdersPage() {
     );
 
   if (!user)
-    return <p className="text-center mt-5 text-2xl">Please login to see orders.</p>;
+    return (
+      <p className="text-center mt-5 text-2xl">Please login to see orders.</p>
+    );
 
   return (
     <div className="max-w-full sm:max-w-6xl mx-auto mt-6 px-4">
@@ -95,16 +110,37 @@ export default function OwnerOrdersPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
           {orders.map((order) => (
-            <div key={order.id} className="bg-white rounded-xl shadow-lg border p-5 flex flex-col justify-between hover:shadow-2xl transition">
-              
+            <div
+              key={order.id}
+              className="bg-white rounded-xl shadow-lg border p-5 flex flex-col justify-between hover:shadow-2xl transition"
+            >
               {/* Customer Info */}
               <div className="space-y-1 text-sm sm:text-base">
-                <p><strong>👤 Name:</strong> {order.fullName || "N/A"}</p>
-                <p><strong>📞 Phone:</strong> {order.mobile || "N/A"}</p>
-                <p><strong>🛒 Type:</strong> {order.orderType || "N/A"}</p>
-                {order.orderType === "inside" && <p><strong>📍 Table:</strong> {order.tableNumber || "N/A"}</p>}
-                {order.orderType === "outside" && <p><strong>🏠 Address:</strong> {order.address || "N/A"}</p>}
-                <p><strong>📅 Date:</strong> {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString() : "N/A"}</p>
+                <p>
+                  <strong>👤 Name:</strong> {order.fullName || "N/A"}
+                </p>
+                <p>
+                  <strong>📞 Phone:</strong> {order.mobile || "N/A"}
+                </p>
+                <p>
+                  <strong>🛒 Type:</strong> {order.orderType || "N/A"}
+                </p>
+                {order.orderType === "inside" && (
+                  <p>
+                    <strong>📍 Table:</strong> {order.tableNumber || "N/A"}
+                  </p>
+                )}
+                {order.orderType === "outside" && (
+                  <p>
+                    <strong>🏠 Address:</strong> {order.address || "N/A"}
+                  </p>
+                )}
+                <p>
+                  <strong>📅 Date:</strong>{" "}
+                  {order.createdAt?.toDate
+                    ? order.createdAt.toDate().toLocaleString()
+                    : "N/A"}
+                </p>
               </div>
 
               {/* Items */}
@@ -113,23 +149,31 @@ export default function OwnerOrdersPage() {
                 <ul className="list-disc pl-5">
                   {order.items?.length > 0 ? (
                     order.items.map((item, idx) => (
-                      <li key={idx}>{item.name} x {item.quantity} = ₹{item.totalPrice}</li>
+                      <li key={idx}>
+                        {item.name} x {item.quantity} = ₹{item.totalPrice}
+                      </li>
                     ))
                   ) : (
                     <li>No items found</li>
                   )}
                 </ul>
-                <p className="mt-2 font-bold text-green-600">Total: ₹{order.total ?? order.subtotal ?? 0}</p>
+                <p className="mt-2 font-bold text-green-600">
+                  Total: ₹{order.total ?? order.subtotal ?? 0}
+                </p>
               </div>
 
               {/* Status */}
               <div className="mt-3">
                 <span className="font-bold">📌 Status: </span>
-                <span className={`capitalize px-2 py-1 rounded-full text-xs sm:text-sm ${
-                  order.status === "confirmed" ? "bg-green-100 text-green-700" :
-                  order.status === "cancelled" ? "bg-red-100 text-red-700" :
-                  "bg-yellow-100 text-yellow-700"
-                }`}>
+                <span
+                  className={`capitalize px-2 py-1 rounded-full text-xs sm:text-sm ${
+                    order.status === "confirmed"
+                      ? "bg-green-100 text-green-700"
+                      : order.status === "cancelled"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-yellow-100 text-yellow-700"
+                  }`}
+                >
                   {order.status}
                 </span>
               </div>
@@ -138,11 +182,31 @@ export default function OwnerOrdersPage() {
               <div className="mt-4 flex flex-col md:flex-row gap-2">
                 {order.status === "pending" && (
                   <>
-                    <button onClick={() => updateOrderStatus(order.id, "confirmed")} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg">✅ Confirm</button>
-                    <button onClick={() => updateOrderStatus(order.id, "cancelled")} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg">❌ Cancel</button>
+                    <button
+                      onClick={() =>
+                        updateOrderStatus(order.id, "confirmed", order.userId)
+                      }
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg"
+                    >
+                      ✅ Confirm
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        updateOrderStatus(order.id, "cancelled", order.userId)
+                      }
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg"
+                    >
+                      ❌ Cancel
+                    </button>
                   </>
                 )}
-                <button onClick={() => handleDelete(order.id)} className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 rounded-lg">🗑 Delete</button>
+                <button
+                  onClick={() => handleDelete(order.id)}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 rounded-lg"
+                >
+                  🗑 Delete
+                </button>
               </div>
             </div>
           ))}
@@ -153,10 +217,22 @@ export default function OwnerOrdersPage() {
       {showDeleteModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 p-4">
           <div className="bg-white p-6 rounded-xl w-full max-w-sm shadow-xl text-center">
-            <p className="text-lg font-bold">Are you sure you want to delete this order?</p>
+            <p className="text-lg font-bold">
+              Are you sure you want to delete this order?
+            </p>
             <div className="flex gap-4 justify-center mt-4">
-              <button onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded-md">Yes, Delete</button>
-              <button onClick={cancelDelete} className="bg-gray-400 hover:bg-gray-500 text-white font-semibold px-6 py-2 rounded-md">Cancel</button>
+              <button
+                onClick={confirmDelete}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded-md"
+              >
+                Yes, Delete
+              </button>
+              <button
+                onClick={cancelDelete}
+                className="bg-gray-400 hover:bg-gray-500 text-white font-semibold px-6 py-2 rounded-md"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

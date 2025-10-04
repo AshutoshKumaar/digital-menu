@@ -1,4 +1,5 @@
 "use client";
+import BottomNav from "@/app/components/FixBottom";
 import { useCart } from "@/app/hooks/CartContext";
 import { ArrowLeft, Trash2, ShoppingBag } from "lucide-react";
 import { Mooli } from "next/font/google";
@@ -83,7 +84,7 @@ export default function CartPage({params}) {
           </div>
 
           {/* Subtotal + Place Order */}
-          <div className="fixed bottom-0 left-0 w-full bg-gray-900 border-t border-gray-700 p-4 flex justify-between items-center z-50">
+          <div className="fixed bottom-16 left-0 w-full bg-gray-900 border-t border-gray-700 p-4 flex justify-between items-center z-50">
             <h2 className="text-lg font-bold">
               Sub Total&nbsp;:- &nbsp;<span className="text-yellow-400">₹{subtotal}</span>
             </h2>
@@ -94,8 +95,12 @@ export default function CartPage({params}) {
               Place Order
             </button>
           </div>
+         
+
         </>
+        
       )}
+       <BottomNav ownerId={ownerId} cart={cart} />
     </div>
   );
 }

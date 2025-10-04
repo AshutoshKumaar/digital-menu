@@ -7,6 +7,7 @@ import Orders from "./Orders";
 import GenerateQR from "./GenerateQR";
 import OurInfo from "./OurInfo";
 import OwnerSystemToggle from "./PaymentSettings";
+import OwnerBillPage from "./OwnerBillPage";
 
 // Placeholder components (replace with real ones)
 function OurMenu() {
@@ -32,6 +33,10 @@ function PaymentSettingsSection() {
   const ownerId = auth.currentUser?.uid;
   return <div className="p-4 text-black"><OwnerSystemToggle  /></div>;
 }
+function BillsSection() {
+  return <div className="p-4 text-black"><OwnerBillPage /></div>;
+ }
+
 
 export default function DashboardTabs() {
   const [activeTab, setActiveTab] = useState("Our Menu");
@@ -41,7 +46,8 @@ export default function DashboardTabs() {
     { label: "Orders", component: <OrdersSection  /> },
     { label: "Generate QR", component: <GenerateQRCode /> },
     { label: "Our Info", component: <OurInfoSection /> },
-    { label: "Settings", component: <OwnerSystemToggle /> }
+    { label: "Settings", component: <OwnerSystemToggle /> },
+    { label: "Bills", component: <OwnerBillPage /> }
   ];
 
   return (

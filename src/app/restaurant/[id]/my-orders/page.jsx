@@ -4,7 +4,9 @@ import { db } from "@/app/firebase/config";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { Mooli } from "next/font/google";
-
+import { useCart } from "@/app/hooks/CartContext";
+import BottomNav from "@/app/components/FixBottom";
+import React from "react";
 const mooli = Mooli({ subsets: ["latin"], weight: ["400"] });
 
 // Helper: fetch userId from localStorage (guest order ke liye)
@@ -12,11 +14,13 @@ const getUserId = () => {
   return localStorage.getItem("userId");
 };
 
-export default function UserOrdersPage() {
+export default function UserOrdersPage({ params }) {
+  const { id: ownerId } = React.use(params);
   const router = useRouter();
   const [userId, setUserId] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { cart } = useCart();
   // console.log("UserOrdersPage rendered with userId:", orders);
 
   useEffect(() => {
@@ -200,6 +204,10 @@ export default function UserOrdersPage() {
           ))}
         </div>
       )}
+
+
+      {/* Bottom Navigation */}
+      <BottomNav ownerId={ownerId} cart={cart} />
 
       <style jsx>{`
         .loader {
