@@ -1,56 +1,45 @@
 import { db } from "@/app/firebase/config";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { getUserId } from "../utils/getUserId";
 
-// Add pending reward on order placement
-export async function addRewardOnOrder(orderId) {
-  const userId = getUserId();
-  const walletRef = doc(db, "users", userId, "wallet", "balance");
+/**
+ * Adds pending rewards (coins and rupees) for a new order.
+ * @param {string} orderId - ID of the order.
+ * @param {number} coins - Coins to add.
+ * @param {number} rupees - Rupees to add.
+ */
+export async function addRewardOnOrder(orderId, coins = 10, rupees = 10) {
+  try {
+    const userIdRaw = await getUserId();
+    if (!userIdRaw) throw new Error("User not logged in");
 
-  // Fetch wallet
-  const snap = await getDoc(walletRef);
+    const userId = String(userIdRaw);
 
-  let coins = Math.floor(Math.random() * 20) + 1; // coins always 1–20
-  let rupees = 0;
-  const rand = Math.random();
+    const walletRef = doc(db, "users", userId, "wallet", "balance");
+    const walletSnap = await getDoc(walletRef);
 
-  // First-time order bonus logic
-  const userOrdersSnap = await getDoc(doc(db, "users", userId));
-  const isFirstOrder = !userOrdersSnap.exists() || (userOrdersSnap.data()?.firstOrderDone !== true);
+    const walletData = walletSnap.exists()
+      ? walletSnap.data()
+      : { coins: 0, pendingCoins: 0, rupees: 0, pendingRupees: 0 };
 
-  if (isFirstOrder) {
-    rupees = Math.floor(Math.random() * 11) + 10; // 10–20 rupees
-  } else if (rand < 0.30) {
-    rupees = Math.floor(Math.random() * 5) + 1;
-  } else if (rand < 0.70) {
-    rupees = Math.floor(Math.random() * 6) + 5;
-  } else if (rand < 0.95) {
-    rupees = 0;
-  } else {
-    rupees = Math.floor(Math.random() * 41) + 10;
+    const updatedWallet = {
+      coins: walletData.coins || 0,
+      pendingCoins: (walletData.pendingCoins || 0) + coins,
+      rupees: walletData.rupees || 0,
+      pendingRupees: (walletData.pendingRupees || 0) + rupees,
+    };
+
+    await setDoc(walletRef, updatedWallet, { merge: true });
+
+    const rewardRef = doc(db, "users", userId, "rewards", String(orderId));
+    await setDoc(rewardRef, { orderId, coins, rupees, status: "pending", createdAt: new Date() });
+
+    console.log("✅ Reward added as pending successfully");
+
+    // Return the reward for frontend use
+    return { coins, rupees };
+  } catch (error) {
+    console.error("❌ Error in addRewardOnOrder:", error);
+    return { coins: 0, rupees: 0 };
   }
-
-  // Update pending rewards in wallet
-  if (snap.exists()) {
-    const data = snap.data();
-    await updateDoc(walletRef, {
-      pendingCoins: (data.pendingCoins || 0) + coins,
-      pendingRupees: (data.pendingRupees || 0) + rupees,
-    });
-  } else {
-    await setDoc(walletRef, {
-      coins: 0,
-      rupees: 0,
-      pendingCoins: coins,
-      pendingRupees: rupees,
-    });
-  }
-
-  // Save reward in order as pending
-  await updateDoc(doc(db, "orders", orderId), {
-    reward: { coins, rupees, status: "pending" },
-    firstOrderApplied: isFirstOrder,
-  });
-
-  return { coins, rupees };
 }
