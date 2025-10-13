@@ -11,7 +11,8 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "../firebase/config";
 import { onAuthStateChanged } from "firebase/auth";
-import { updateRewardOnStatusChange } from "../utils/updateRewardOnStatusChange";
+import { updateRewardOnOrderConfirm } from "../utils/updateRewardOnOrderConfirm";
+import { deductRewardOnOrderCancel } from "../utils/deductRewardOnOrderCancel";
 
 export default function OwnerOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -57,13 +58,35 @@ export default function OwnerOrdersPage() {
     return () => unsubscribe();
   }, [user]);
 
+  // ✅ UPDATED FUNCTION: Status ke hisaab se reward logic call kiya
   const updateOrderStatus = async (orderId, status, userId) => {
     try {
+      if (!userId) {
+        console.error("Cannot update reward: Customer userId is missing.");
+        // Fir bhi order status update kar denge
+      }
+      
       const orderRef = doc(db, "orders", orderId);
+      
+      // 1. Order status update karo
       await updateDoc(orderRef, { status });
-      await updateRewardOnStatusChange(orderId, status, userId);
+
+      // 2. Reward Logic handle karo
+      if (userId) {
+        if (status === "confirmed") {
+          // CONFIRM: Pending rewards ko permanent wallet mein transfer karo
+          await updateRewardOnOrderConfirm(orderId, userId);
+          console.log(`✅ Order ${orderId} confirmed. Rewards transferred.`);
+        } else if (status === "cancelled") {
+          // CANCEL: Pending rewards ko wallet se hatao
+          await deductRewardOnOrderCancel(orderId, userId);
+          console.log(`❌ Order ${orderId} cancelled. Pending rewards removed.`);
+        }
+      }
+
     } catch (error) {
-      console.error("Error updating status:", error);
+      console.error(`Error processing status update for order ${orderId}:`, error);
+      // You might want to revert the status update here if the reward logic fails
     }
   };
 

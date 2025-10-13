@@ -87,7 +87,7 @@ export default function PhoneLinkModal({ show, onClose }) {
             </button>
           </>
         )}
-        <div id="recaptcha-container"></div>
+        <div id="recaptcha-container" className="z-70 absolute top-20"></div>
 
         <button onClick={onClose} className="mt-4 text-gray-400 text-sm hover:text-gray-200 w-full text-center">
           Cancel

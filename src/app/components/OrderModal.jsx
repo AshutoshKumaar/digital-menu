@@ -1,3 +1,4 @@
+// components/CheckoutClient.jsx
 "use client";
 import { useEffect, useState } from "react";
 import { db } from "@/app/firebase/config";
@@ -42,10 +43,12 @@ export default function CheckoutClient({ ownerId }) {
   // ✅ Load anonymous / logged-in user
   useEffect(() => {
     async function loadUser() {
-      const { uid, isAnonymous } = await getUserId();
-      setUserId(uid);
-      setIsAnonymous(isAnonymous);
-      console.log("🧩 User loaded:", uid, "| Anonymous:", isAnonymous);
+      const userResult = await getUserId();
+      if (userResult) {
+        setUserId(userResult.uid);
+        setIsAnonymous(userResult.isAnonymous);
+        console.log("🧩 User loaded:", userResult.uid, "| Anonymous:", userResult.isAnonymous);
+      }
     }
     loadUser();
   }, []);
@@ -53,13 +56,15 @@ export default function CheckoutClient({ ownerId }) {
   // ✅ Fetch owner info
   useEffect(() => {
     async function fetchOwner() {
+      // Added check for ownerId to prevent unnecessary fetches
+      if (!ownerId) return;
       const docSnap = await getDoc(doc(db, "owners", ownerId));
       if (docSnap.exists()) setOwner(docSnap.data());
     }
-    if (ownerId) fetchOwner();
+    fetchOwner();
   }, [ownerId]);
 
-  if (!owner) return <LoadingScreen />;
+  if (!owner || !userId) return <LoadingScreen />; // Wait for both owner info AND userId
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -67,60 +72,61 @@ export default function CheckoutClient({ ownerId }) {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (cart.length === 0) return;
-  setLoading(true);
+    e.preventDefault();
+    if (cart.length === 0) return;
+    setLoading(true);
 
-  try {
-    if (!userId) throw new Error("User ID missing");
+    try {
+      if (!userId) throw new Error("User ID missing. Auth state not ready.");
 
-    const newOrder = {
-      userId,
-      ownerId,
-      items: cart,
-      subtotal,
-      total: subtotal,
-      status: "pending",
-      orderType,
-      tableNumber: orderType === "inside" ? formData.table : null,
-      fullName: formData.name,
-      mobile: orderType === "outside" ? formData.number : null,
-      address: orderType === "outside" ? formData.address : null,
-      city: orderType === "outside" ? formData.city : null,
-      pincode: orderType === "outside" ? formData.pincode : null,
-      createdAt: serverTimestamp(),
-    };
+      const newOrder = {
+        userId, // The customer's UID (anonymous or logged-in)
+        ownerId,
+        items: cart,
+        subtotal,
+        total: subtotal,
+        status: "pending",
+        orderType,
+        tableNumber: orderType === "inside" ? formData.table : null,
+        fullName: formData.name,
+        mobile: orderType === "outside" ? formData.number : null,
+        address: orderType === "outside" ? formData.address : null,
+        city: orderType === "outside" ? formData.city : null,
+        pincode: orderType === "outside" ? formData.pincode : null,
+        createdAt: serverTimestamp(),
+      };
 
-    // Add Order
-    const docRef = await addDoc(collection(db, "orders"), newOrder);
-    console.log("✅ Order placed with ID:", docRef.id);
+      // 1. Add Order
+      const docRef = await addDoc(collection(db, "orders"), newOrder);
+      console.log("✅ Order placed with ID:", docRef.id);
 
-    // Add Reward safely
-    const rewardData = await addRewardOnOrder(docRef.id);
-    setReward({
-      rupees: rewardData?.rupees || 0,
-      coins: rewardData?.coins || 0,
-    });
+      // 2. Add Reward safely (using the customer's UID fetched from state)
+      const rewardData = await addRewardOnOrder(docRef.id);
+      setReward({
+        rupees: rewardData?.rupees || 0,
+        coins: rewardData?.coins || 0,
+      });
 
-    // Reset form and cart
-    setFormData({ name: "", number: "", table: "", address: "", city: "", pincode: "" });
-    clearCart();
+      // 3. Reset form and cart
+      setFormData({ name: "", number: "", table: "", address: "", city: "", pincode: "" });
+      clearCart();
 
-    // Show success modal
-    setModalOpen(true);
+      // 4. Show success modal
+      setModalOpen(true);
 
-    // If anonymous, prompt phone linking
-    if (isAnonymous) {
-      setTimeout(() => setShowPhoneModal(true), 1500);
+      // 5. If anonymous, prompt phone linking after success message
+      if (isAnonymous) {
+        setTimeout(() => setShowPhoneModal(true), 1500);
+      }
+
+    } catch (err) {
+      console.error("❌ Checkout Error:", err.message);
+    } finally {
+      setLoading(false);
     }
-
-  } catch (err) {
-    console.error("❌ Checkout Error:", err.message);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
+  
+  // (Rest of the component remains the same, including JSX)
   return (
     <div
       className={`relative p-6 text-white min-h-screen pb-28 ${mooli.className}`}
