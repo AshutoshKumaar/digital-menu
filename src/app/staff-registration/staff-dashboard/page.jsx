@@ -1,84 +1,84 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { auth, db } from "@/app/firebase/config";
 import {
   collection,
-  addDoc,
   query,
   where,
   onSnapshot,
-  serverTimestamp,
 } from "firebase/firestore";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { Home, Briefcase, Wallet, User } from "lucide-react";
+import { onAuthStateChanged } from "firebase/auth";
+import {
+  Home,
+  Briefcase,
+  Wallet,
+  User,
+  PlayCircle,
+  Handshake,
+} from "lucide-react";
 
 import ProfilePage from "../components/ProfilePage";
 import DashboardPage from "../components/DashboardPage";
 import WalletPage from "../components/WalletPage";
 import WorkPage from "../components/WorkPage";
-import {Josefin_Sans} from 'next/font/google'
+import { Josefin_Sans } from "next/font/google";
+import DigitalBharatMenuLogo from "@/app/components/DigitalBharatMenuLogo";
+import Paymentpartner from "@/app/components/Paymentpartner";
 
-
-const josefin = Josefin_Sans({ subsets: ['latin'], weight: ['400', '700'] })
+const josefin = Josefin_Sans({ subsets: ["latin"], weight: ["400", "700"] });
 
 export default function StaffDashboard() {
-  const [user, setUser] = useState(undefined); // undefined for loading state
+  const [user, setUser] = useState(undefined); // undefined = loading
   const [visits, setVisits] = useState([]);
-  const [restaurant, setRestaurant] = useState("");
-  const [plan, setPlan] = useState("");
   const [earning, setEarning] = useState(0);
   const [activePage, setActivePage] = useState("dashboard");
 
-  // ---------------- Listen to Auth ----------------
+  // ---------------- Auth Listener ----------------
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser || null);
+      if (currentUser) {
+        console.log("Logged in user:", currentUser.uid);
+        setUser(currentUser);
+      } else {
+        console.log("No user logged in");
+        setUser(null);
+      }
     });
     return () => unsubscribe();
   }, []);
-  console.log("Current User:", user);
 
-  // ---------------- Fetch Staff Visits ----------------
+  // ---------------- Fetch Work Details ----------------
   useEffect(() => {
-    if (!user) return;
-    const q = query(collection(db, "workDetails"), where("staffId", "==", user.uid));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => doc.data());
-      setVisits(data);
-      const total = data.reduce((sum, item) => sum + (item.earning || 0), 0);
-      setEarning(total);
-    });
-    return () => unsub();
+    if (!user) return; // Wait for user to load
+    const workQuery = query(
+      collection(db, "workDetails"),
+      where("staffId", "==", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(
+      workQuery,
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setVisits(data);
+        const total = data.reduce(
+          (sum, item) => sum + (item.calculatedReward || 0),
+          0
+        );
+        setEarning(total);
+      },
+      (error) => {
+        console.error("Error fetching visits:", error);
+      }
+    );
+
+    return () => unsubscribe();
   }, [user]);
 
-  // ---------------- Add Visit ----------------
-  const handleAddVisit = async (e) => {
-    e.preventDefault();
-    if (!user) {
-      alert("User not loaded yet. Please wait...");
-      return;
-    }
-
-    let commission = 0;
-    if (plan === "basic") commission = 50;
-    else if (plan === "premium") commission = 100;
-    else if (plan === "enterprise") commission = 200;
-
-    const totalEarning = 10 + commission;
-
-    await addDoc(collection(db, "workDetails"), {
-      staffId: user.uid,
-      restaurant,
-      plan,
-      earning: totalEarning,
-      timestamp: serverTimestamp(),
-    });
-
-    setRestaurant("");
-    setPlan("");
-  };
-
-  // ---------------- Loading Screen ----------------
+  // ---------------- Loading State ----------------
   if (user === undefined) {
     return (
       <div className={`flex justify-center items-center h-screen bg-gray-100 ${josefin.className}`}>
@@ -89,64 +89,113 @@ export default function StaffDashboard() {
     );
   }
 
-  // ---------------- UI Layout ----------------
+  if (user === null) {
+    return (
+      <div className={`flex justify-center items-center h-screen bg-gray-100 ${josefin.className}`}>
+        <p className="text-red-600 font-semibold text-lg">
+          You are not logged in.
+        </p>
+      </div>
+    );
+  }
+
+  // ---------------- Layout ----------------
   return (
-    <div className={`min-h-screen bg-gray-100 pb-24 p-5 ${josefin.className}`}>
-      <h1 className="text-2xl font-bold mb-5">
-        👋 Hello, <span className="text-blue-600">{user?.email || "Guest"}</span>
-      </h1>
+    <div className={`min-h-screen bg-gray-50 pb-24 ${josefin.className}`}>
+      <header className="bg-white shadow-md sticky top-0 left-0 z-50 flex items-center justify-between px-5 py-4">
+        <div className="flex items-center gap-2">
+          <DigitalBharatMenuLogo />
+        </div>
+      </header>
 
-      {activePage === "dashboard" && <DashboardPage earning={earning} />}
-      {activePage === "work" && (
-        <WorkPage
-          user={user}
-        />
-      )}
-      {activePage === "wallet" && <WalletPage earning={earning} />}
-      {activePage === "profile" && <ProfilePage user={user} />}
+      <main className="p-5 space-y-8">
+        {activePage === "dashboard" && (
+          <div>
+            <DashboardPage earning={earning} visits={visits} />
+            <YouTubeSection user={user} />
+            <Paymentpartner />
+          </div>
+        )}
+        {activePage === "work" && <WorkPage user={user} visits={visits} />}
+        {activePage === "wallet" && <WalletPage earning={earning} />}
+        {activePage === "profile" && <ProfilePage user={user} />}
+      </main>
 
-      {/* ---------------- Bottom Navbar ---------------- */}
-      <div className="fixed bottom-0 left-0 w-full bg-white border-t shadow-md flex justify-around py-3">
-        <button
+      <nav className="fixed bottom-0 left-0 w-full bg-white border-t shadow-md flex justify-around py-3">
+        <BottomButton
+          icon={<Home className="w-5 h-5" />}
+          label="Dashboard"
+          active={activePage === "dashboard"}
           onClick={() => setActivePage("dashboard")}
-          className={`flex flex-col items-center text-sm ${
-            activePage === "dashboard" ? "text-blue-600" : "text-gray-500"
-          }`}
-        >
-          <Home className="w-5 h-5" />
-          Dashboard
-        </button>
-
-        <button
+        />
+        <BottomButton
+          icon={<Briefcase className="w-5 h-5" />}
+          label="Work"
+          active={activePage === "work"}
           onClick={() => setActivePage("work")}
-          className={`flex flex-col items-center text-sm ${
-            activePage === "work" ? "text-blue-600" : "text-gray-500"
-          }`}
-        >
-          <Briefcase className="w-5 h-5" />
-          Work
-        </button>
-
-        <button
+        />
+        <BottomButton
+          icon={<Wallet className="w-5 h-5" />}
+          label="Wallet"
+          active={activePage === "wallet"}
           onClick={() => setActivePage("wallet")}
-          className={`flex flex-col items-center text-sm ${
-            activePage === "wallet" ? "text-blue-600" : "text-gray-500"
-          }`}
-        >
-          <Wallet className="w-5 h-5" />
-          Wallet
-        </button>
-
-        <button
+        />
+        <BottomButton
+          icon={<User className="w-5 h-5" />}
+          label="Profile"
+          active={activePage === "profile"}
           onClick={() => setActivePage("profile")}
-          className={`flex flex-col items-center text-sm ${
-            activePage === "profile" ? "text-blue-600" : "text-gray-500"
-          }`}
-        >
-          <User className="w-5 h-5" />
-          Profile
-        </button>
+        />
+      </nav>
+    </div>
+  );
+}
+
+// ---------------- COMPONENTS ----------------
+function YouTubeSection({ user }) {
+  return (
+    <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-2xl shadow-sm p-5 border border-blue-200">
+      <div className="flex items-center gap-3 mb-4">
+        <PlayCircle className="w-7 h-7 text-red-500" />
+        <h2 className="text-lg font-bold text-gray-800">
+          Learn & Earn with Us
+        </h2>
+      </div>
+
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+        <p className="text-gray-700 text-sm">
+          Hey <span className="font-semibold text-blue-700">{user?.displayName || user?.email?.split("@")[0]}</span>,  
+          let’s grow together and achieve success!
+        </p>
+        <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
+          <Handshake className="w-4 h-4" />
+          Stay Connected
+        </div>
+      </div>
+
+      <div className="aspect-video rounded-xl overflow-hidden border border-gray-200 shadow-md">
+        <iframe
+          width="100%"
+          height="100%"
+          src="https://www.youtube.com/embed/3fumBcKC6RE"
+          title="How to Earn from Our Platform"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
       </div>
     </div>
+  );
+}
+
+function BottomButton({ icon, label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-col items-center text-sm ${active ? "text-blue-600 font-semibold" : "text-gray-500"} transition-all`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

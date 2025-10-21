@@ -2,6 +2,7 @@
 import { CheckCircle, Phone, Mail, Globe, Settings, DollarSign, Zap, Clock, TrendingUp, Users, Menu, X } from "lucide-react";
 import { useState } from 'react'; 
 import Link from 'next/link';
+import DigitalBharatMenuLogo from "./components/DigitalBharatMenuLogo";
 
 
 import { Josefin_Sans } from "next/font/google";
@@ -26,6 +27,7 @@ const Navbar = () => {
         { href: "#benefits", label: "Benefits" },
         { href: "#pricing", label: "Pricing" },
         { href: "#contact", label: "Contact" },
+        { href: "/careers", label: "Careers" },
     ];
 
     return (
@@ -33,7 +35,8 @@ const Navbar = () => {
             <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
                 {/* Logo */}
                 <a href="#" className="text-2xl sm:text-3xl font-extrabold text-indigo-700 tracking-wider transition duration-300 hover:text-indigo-900">
-                    Menu<span className="text-blue-500">QR</span>
+                    <DigitalBharatMenuLogo  className="h-16"  />
+                   
                 </a>
                 
                 {/* Desktop Navigation Links */}
@@ -105,7 +108,7 @@ const Footer = () => (
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12 text-sm">
             {/* Column 1: Company Info */}
             <div className="col-span-2 md:col-span-1">
-                <h3 className="text-2xl font-extrabold mb-4 text-indigo-400">MenuQR</h3>
+                <DigitalBharatMenuLogo className="h-12 mb-4" />
                 <p className="text-sm text-gray-400 mb-6">Modern, Simple & Smart Ordering System</p>
                 <h4 className="font-semibold mb-3 border-b border-indigo-400/30 pb-1">Terms & Conditions</h4>
                 <ul className="text-xs space-y-2 text-gray-400">
@@ -206,7 +209,7 @@ export default function LandingPage() {
     ];
 
     return (
-        <div className ={`bg-gray-50 font-josefin antialiased ${josefin.className}`}>
+        <div className ={` font-josefin antialiased ${josefin.className}`}>
             <Navbar />
 
             {/* 1. Hero Section (Slide 1) */}

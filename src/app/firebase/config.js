@@ -33,8 +33,8 @@ export const storage = getStorage(app);
 // ✅ Disable reCAPTCHA only for local development (for testing OTP)
 if (typeof window !== "undefined" && window.location.hostname === "localhost") {
   try {
-    auth.settings.appVerificationDisabledForTesting = true;
-    console.log("✅ App verification disabled for localhost testing");
+    auth.settings.appVerificationDisabledForTesting = false
+        console.log("✅ App verification disabled for localhost testing");
   } catch (err) {
     console.warn("⚠️ Could not disable app verification:", err);
   }

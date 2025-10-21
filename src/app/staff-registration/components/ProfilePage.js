@@ -20,7 +20,7 @@ const ProfilePage = () => {
         return;
       }
       try {
-        const userRef = doc(db, "salesperson", user.uid);
+        const userRef = doc(db, "salespersons", user.uid);
         const snap = await getDoc(userRef);
         if (snap.exists()) setStaff(snap.data());
         else setStaff(null);
@@ -33,6 +33,9 @@ const ProfilePage = () => {
 
     fetchStaffData();
   }, []);
+
+
+  // console.log("Staff Data:", staff.er)
 
   if (loading)
     return (

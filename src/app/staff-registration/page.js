@@ -1,252 +1,328 @@
-'use client';
+"use client";
+import React, { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import Navbar from "@/app/components/Navbar";
+import Footer from "@/app/components/Footer";
+import { useRouter } from "next/navigation";
+import { Josefin_Sans } from "next/font/google";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { auth, db } from "@/app/firebase/config"; // ✅ your Firebase initialized file
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { auth, db } from '../firebase/config'; // ✅ your real Firebase config
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+const josefin = Josefin_Sans({ subsets: ["latin"] });
 
-// ✅ Regions list
-const REGIONS = [
-  'East Delhi',
-  'West Delhi',
-  'South Mumbai',
-  'North Bangalore',
-  'Jaipur Central',
-];
+// 🌍 Country → State → District data
+const locationData = {
+  India: {
+    Bihar: ["Katihar", "Purnia", "Patna", "Bhagalpur"],
+    "Uttar Pradesh": ["Lucknow", "Varanasi", "Noida"],
+    Maharashtra: ["Mumbai", "Pune", "Nagpur"],
+  },
+  Nepal: {
+    Province1: ["Biratnagar", "Dharan"],
+    Province2: ["Janakpur", "Siraha"],
+  },
+};
 
-// ✅ Global font loader
-const MooliFontLoader = () => (
-  <style jsx global>{`
-    @import url('https://fonts.googleapis.com/css2?family=Mooli&display=swap');
-    body, * {
-      font-family: 'Mooli', sans-serif !important;
-    }
-    .space-y-5 > * {
-      margin-top: 1.25rem;
-    }
-    .space-y-5 > *:first-child {
-      margin-top: 0;
-    }
-  `}</style>
-);
+// ✅ Zod Schema
+const formSchema = z.object({
+  fullName: z.string().min(2, "Full name is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z
+    .string()
+    .regex(/^[0-9]{10}$/, "Enter a valid 10-digit phone number"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  country: z.string().min(1, "Select your country"),
+  state: z.string().min(1, "Select your state"),
+  district: z.string().min(1, "Select your district"),
+  agentCode: z
+    .string()
+    .min(1, "Agent Code is required")
+    .refine((code) => code === "AGENT123", {
+      message: "Invalid Agent Code. Registration not completed.",
+    }),
+});
 
-const Register = () => {
+export default function Registration() {
   const router = useRouter();
+  const [states, setStates] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [firebaseError, setFirebaseError] = useState("");
 
-  // form states
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [name, setName] = useState('');
-  const [mobile, setMobile] = useState('');
-  const [assignedRegion, setAssignedRegion] = useState(REGIONS[0]);
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+    setValue,
+  } = useForm({
+    resolver: zodResolver(formSchema),
+  });
 
-  // handle form submission
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
+  const selectedCountry = watch("country");
+  const selectedState = watch("state");
 
-    // validation
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      setIsLoading(false);
-      return;
+  useEffect(() => {
+    if (selectedCountry) {
+      setStates(Object.keys(locationData[selectedCountry]));
+      setValue("state", "");
+      setValue("district", "");
+      setDistricts([]);
     }
-    if (mobile.length !== 10 || !/^\d{10}$/.test(mobile)) {
-      setError('Mobile number must be a valid 10-digit number.');
-      setIsLoading(false);
-      return;
+  }, [selectedCountry]);
+
+  useEffect(() => {
+    if (selectedCountry && selectedState) {
+      setDistricts(locationData[selectedCountry][selectedState] || []);
+      setValue("district", "");
     }
+  }, [selectedState]);
+
+  const onSubmit = async (data) => {
+    setLoading(true);
+    setFirebaseError("");
 
     try {
-      // ✅ Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // ✅ 1. Create user in Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        data.email,
+        data.password
+      );
       const user = userCredential.user;
 
-      // ✅ Create user profile in Firestore
-      await setDoc(doc(db, 'salespersons', user.uid), {
-        name,
-        email,
-        mobile,
-        assignedRegion,
-        walletBalance: 0.0,
-        role: 'salesperson',
+      // ✅ 2. Save data in Firestore (salespersons/{uid})
+      await setDoc(doc(db, "salespersons", user.uid), {
+        uid: user.uid,
+        fullName: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        country: data.country,
+        state: data.state,
+        district: data.district,
+        agentCode: data.agentCode,
         createdAt: serverTimestamp(),
       });
 
-      router.push('/staff-dashboard');
-    } catch (err) {
-      console.error('Registration error:', err);
-      if (err.code === 'auth/weak-password') {
-        setError('Password should be at least 6 characters.');
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError('This email address is already in use.');
-      } else {
-        setError(err.message);
-      }
+      alert("✅ Registration Successful!");
+      router.push("/staff-registration/staff-login"); // redirect after success
+    } catch (error) {
+      console.error("Error during registration:", error);
+      setFirebaseError(error.message || "Something went wrong!");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-4 sm:p-8">
-      <MooliFontLoader />
-      <div className="w-full max-w-lg bg-white p-6 sm:p-8 rounded-2xl shadow-2xl border border-gray-100 transform transition duration-500 ease-in-out">
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-center text-gray-800 mb-2">
-          New Staff Onboarding
-        </h1>
-        <p className="text-center text-gray-500 mb-6 sm:mb-8 text-sm sm:text-base">
-          Sign up to access your Sales Panel.
-        </p>
+    <div className={josefin.className}>
+      {/* Static Navbar */}
+      <nav className="fixed top-0 left-0 w-full z-50">
+        <Navbar />
+      </nav>
 
-        {error && (
-          <div
-            className="bg-red-50 border border-red-300 text-red-600 px-4 py-3 rounded-lg text-sm mb-4 transition duration-300"
-            role="alert"
-          >
-            <span className="font-semibold">Error: </span>
-            {error}
-          </div>
-        )}
+      {/* Registration Section */}
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white pt-28 pb-6 px-4">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-md space-y-5 border border-gray-100"
+        >
+          <h2 className="text-3xl font-semibold text-center text-gray-800 mb-4">
+            Create Your Account
+          </h2>
 
-        <form onSubmit={handleRegister} className="space-y-4 sm:space-y-5">
-          <InputGroup
-            id="name"
-            label="Full Name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Karan Sharma"
-          />
+          {firebaseError && (
+            <p className="text-red-500 text-center text-sm">
+              {firebaseError}
+            </p>
+          )}
 
-          <InputGroup
-            id="email"
-            label="Email Address"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="karan@sales.com"
-          />
-
-          <InputGroup
-            id="mobile"
-            label="Mobile Number (10 digits)"
-            type="tel"
-            value={mobile}
-            onChange={(e) => setMobile(e.target.value)}
-            placeholder="9876543210"
-            maxLength="10"
-          />
-
-          {/* Region Dropdown */}
+          {/* Full Name */}
           <div>
-            <label htmlFor="region" className="block text-sm font-medium text-gray-700 mb-1">
-              Assigned Region
+            <label className="block text-sm font-medium text-gray-700">
+              Full Name
+            </label>
+            <input
+              {...register("fullName")}
+              placeholder="Enter your full name"
+              className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
+            />
+            {errors.fullName && (
+              <p className="text-red-500 text-sm">
+                {errors.fullName.message}
+              </p>
+            )}
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Email
+            </label>
+            <input
+              {...register("email")}
+              placeholder="Enter your email address"
+              className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
+            />
+            {errors.email && (
+              <p className="text-red-500 text-sm">{errors.email.message}</p>
+            )}
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Phone
+            </label>
+            <input
+              {...register("phone")}
+              placeholder="Enter 10-digit phone number"
+              className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
+            />
+            {errors.phone && (
+              <p className="text-red-500 text-sm">{errors.phone.message}</p>
+            )}
+          </div>
+
+          {/* Password */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Password
+            </label>
+            <input
+              type="password"
+              {...register("password")}
+              placeholder="Create a secure password"
+              className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
+            />
+            {errors.password && (
+              <p className="text-red-500 text-sm">
+                {errors.password.message}
+              </p>
+            )}
+          </div>
+
+          {/* Country */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Country
             </label>
             <select
-              id="region"
-              value={assignedRegion}
-              onChange={(e) => setAssignedRegion(e.target.value)}
-              required
-              className="block w-full px-4 py-3 border border-gray-300 bg-white rounded-lg shadow-inner focus:ring-indigo-500 focus:border-indigo-500 transition duration-300 cursor-pointer text-base"
+              {...register("country")}
+              className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
             >
-              {REGIONS.map((region) => (
-                <option key={region} value={region}>
-                  {region}
+              <option value="">Select Country</option>
+              {Object.keys(locationData).map((country) => (
+                <option key={country} value={country}>
+                  {country}
                 </option>
               ))}
             </select>
+            {errors.country && (
+              <p className="text-red-500 text-sm">{errors.country.message}</p>
+            )}
           </div>
 
-          {/* Password & Confirm */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            <InputGroup
-              id="password"
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min 6 characters"
-            />
-
-            <InputGroup
-              id="confirmPassword"
-              label="Confirm Password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter password"
-            />
+          {/* State */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              State
+            </label>
+            <select
+              {...register("state")}
+              disabled={!selectedCountry}
+              className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none disabled:bg-gray-100"
+            >
+              <option value="">Select State</option>
+              {states.map((state) => (
+                <option key={state} value={state}>
+                  {state}
+                </option>
+              ))}
+            </select>
+            {errors.state && (
+              <p className="text-red-500 text-sm">{errors.state.message}</p>
+            )}
           </div>
 
-          {/* Register Button */}
+          {/* District */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              District
+            </label>
+            <select
+              {...register("district")}
+              disabled={!selectedState}
+              className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none disabled:bg-gray-100"
+            >
+              <option value="">Select District</option>
+              {districts.map((district) => (
+                <option key={district} value={district}>
+                  {district}
+                </option>
+              ))}
+            </select>
+            {errors.district && (
+              <p className="text-red-500 text-sm">
+                {errors.district.message}
+              </p>
+            )}
+          </div>
+
+          {/* Agent Code */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Agent Code
+            </label>
+            <input
+              {...register("agentCode")}
+              placeholder="Enter your agent code"
+              className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
+            />
+            {errors.agentCode && (
+              <p className="text-red-500 text-sm">
+                {errors.agentCode.message}
+              </p>
+            )}
+          </div>
+
+          {/* Submit */}
           <button
             type="submit"
-            disabled={isLoading}
-            className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-lg font-bold text-white transition duration-300 ease-in-out transform hover:scale-[1.01] ${
-              isLoading
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300'
-            }`}
+            disabled={loading}
+            className={`w-full ${
+              loading ? "bg-gray-400" : "bg-indigo-600 hover:bg-indigo-700"
+            } text-white py-3 rounded-lg font-semibold transition-all`}
           >
-            {isLoading ? (
-              <svg
-                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0
-                   c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-            ) : (
-              'Register Salesperson'
-            )}
+            {loading ? "Registering..." : "Register"}
           </button>
-        </form>
 
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Already have an account?
-          <Link
-            href="/login"
-            className="text-indigo-600 hover:text-indigo-800 font-semibold ml-1 transition duration-300"
-          >
-            Login Here
-          </Link>
-        </p>
+          {/* 🔗 Login Redirect */}
+          <p className="text-center text-sm text-gray-600 mt-3">
+            Already have an account?{" "}
+            <span
+              onClick={() => router.push("staff-registration/staff-login")}
+              className="text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
+            >
+              Login here
+            </span>
+          </p>
+        </form>
       </div>
+
+      <Footer />
     </div>
   );
-};
-
-// ✅ Reusable Input Component
-const InputGroup = ({ id, label, type, value, onChange, placeholder, maxLength }) => (
-  <div>
-    <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
-      {label}
-    </label>
-    <input
-      type={type}
-      id={id}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      required
-      maxLength={maxLength}
-      className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-inner focus:ring-indigo-500 focus:border-indigo-500 transition duration-300 text-base"
-    />
-  </div>
-);
-
-export default Register;
+}
