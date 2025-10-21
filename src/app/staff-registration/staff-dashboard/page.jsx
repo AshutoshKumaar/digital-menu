@@ -31,7 +31,7 @@ const josefin = Josefin_Sans({ subsets: ["latin"], weight: ["400", "700"] });
 export default function StaffDashboard() {
   const [user, setUser] = useState(undefined); // undefined = loading
   const [visits, setVisits] = useState([]);
-  const [earning, setEarning] = useState(0);
+  const [earning, setEarning] = useState({ confirmed: 0, pending: 0 });
   const [activePage, setActivePage] = useState("dashboard");
 
   // ---------------- Auth Listener ----------------
@@ -50,33 +50,37 @@ export default function StaffDashboard() {
 
   // ---------------- Fetch Work Details ----------------
   useEffect(() => {
-    if (!user) return; // Wait for user to load
-    const workQuery = query(
-      collection(db, "workDetails"),
-      where("staffId", "==", user.uid)
-    );
+  if (!user) return;
 
-    const unsubscribe = onSnapshot(
-      workQuery,
-      (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setVisits(data);
-        const total = data.reduce(
-          (sum, item) => sum + (item.calculatedReward || 0),
-          0
-        );
-        setEarning(total);
-      },
-      (error) => {
-        console.error("Error fetching visits:", error);
-      }
-    );
+  const workQuery = query(
+    collection(db, "workDetails"),
+    where("staffId", "==", user.uid)
+  );
 
-    return () => unsubscribe();
-  }, [user]);
+  const unsubscribe = onSnapshot(workQuery, (snapshot) => {
+    const data = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    setVisits(data);
+
+    // ✅ Confirmed rewards only for wallet
+    const confirmedEarning = data
+      .filter((item) => item.rewardStatus === "confirmed")
+      .reduce((sum, item) => sum + (item.calculatedReward || 0), 0);
+      console.log("Confirmed Earning:", confirmedEarning);
+
+    // ✅ Pending rewards separately
+    const pendingEarning = data
+      .filter((item) => item.rewardStatus === "pending")
+      .reduce((sum, item) => sum + (item.calculatedReward || 0), 0);
+
+    setEarning({ confirmed: confirmedEarning, pending: pendingEarning });
+  });
+
+  return () => unsubscribe();
+}, [user]);
+
 
   // ---------------- Loading State ----------------
   if (user === undefined) {

@@ -152,6 +152,7 @@ function TabButton({ children, active, onClick, icon }) {
 }
 
 /* -------------------- Hotel Visit Panel -------------------- */
+/* -------------------- Hotel Visit Panel -------------------- */
 function HotelVisitPanel({ user }) {
   const initial = {
     hotelName: "",
@@ -252,104 +253,138 @@ function HotelVisitPanel({ user }) {
       </h2>
 
       <form className="space-y-3" onSubmit={handleSubmit}>
-        <input
-          name="hotelName"
-          value={form.hotelName}
-          onChange={handleChange}
-          placeholder="Hotel / Restaurant Name *"
-          className="w-full border rounded-lg p-2"
-          required
-        />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="font-semibold text-gray-700">Hotel / Restaurant Name *</label>
           <input
-            name="ownerName"
-            value={form.ownerName}
+            name="hotelName"
+            value={form.hotelName}
             onChange={handleChange}
-            placeholder="Owner / Manager Name *"
-            className="w-full border rounded-lg p-2"
-            required
-          />
-          <input
-            name="contact"
-            value={form.contact}
-            onChange={handleChange}
-            placeholder="Contact Number *"
-            className="w-full border rounded-lg p-2"
+            placeholder="Enter hotel or restaurant name"
+            className="w-full border rounded-lg p-2 mt-1"
             required
           />
         </div>
-        <textarea
-          name="address"
-          value={form.address}
-          onChange={handleChange}
-          placeholder="Address or Google Maps link *"
-          className="w-full border rounded-lg p-2"
-          required
-        />
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <input
-            type="date"
-            name="visitedDate"
-            value={form.visitedDate}
-            onChange={handleChange}
-            className="w-full border rounded-lg p-2"
-            required
-          />
-          <label className="cursor-pointer bg-white border p-2 rounded-lg flex items-center gap-2">
+          <div>
+            <label className="font-semibold text-gray-700">Owner / Manager Name *</label>
             <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleCapture}
-              className="hidden"
+              name="ownerName"
+              value={form.ownerName}
+              onChange={handleChange}
+              placeholder="Enter owner's name"
+              className="w-full border rounded-lg p-2 mt-1"
               required
             />
-            <Camera />
-            Take Photo & Capture Location
-          </label>
+          </div>
+          <div>
+            <label className="font-semibold text-gray-700">Contact Number *</label>
+            <input
+              name="contact"
+              value={form.contact}
+              onChange={handleChange}
+              placeholder="Enter contact number"
+              className="w-full border rounded-lg p-2 mt-1"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="font-semibold text-gray-700">Hotel Address *</label>
+          <textarea
+            name="address"
+            value={form.address}
+            onChange={handleChange}
+            placeholder="Enter hotel address"
+            className="w-full border rounded-lg p-2 mt-1"
+            required
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="font-semibold text-gray-700">Visited Date *</label>
+            <input
+              type="date"
+              name="visitedDate"
+              value={form.visitedDate}
+              onChange={handleChange}
+              className="w-full border rounded-lg p-2 mt-1"
+              required
+            />
+          </div>
+          <div>
+            <label className="font-semibold text-gray-700">Capture Photo & Location *</label>
+            <label className="cursor-pointer bg-white border p-2 mt-1 rounded-lg flex items-center gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleCapture}
+                className="hidden"
+                required
+              />
+              <Camera /> Take Photo
+            </label>
+          </div>
         </div>
 
         {location && (
           <div className="text-sm text-gray-600 mt-1 p-2 border rounded-lg">
-            Lat: {location.latitude.toFixed(5)}, Lng: {location.longitude.toFixed(5)}
+            📍 Lat: {location.latitude.toFixed(5)}, Lng: {location.longitude.toFixed(5)}
           </div>
         )}
 
-        <textarea
-          name="whatSaid"
-          value={form.whatSaid}
-          onChange={handleChange}
-          placeholder="What customer said (notes) *"
-          className="w-full border rounded-lg p-2"
-          required
-        />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <select
-            name="interest"
-            value={form.interest}
+        <div>
+          <label className="font-semibold text-gray-700">What Customer Said *</label>
+          <textarea
+            name="whatSaid"
+            value={form.whatSaid}
             onChange={handleChange}
-            className="w-full border rounded-lg p-2"
+            placeholder="Notes from customer conversation"
+            className="w-full border rounded-lg p-2 mt-1"
             required
-          >
-            <option>Interested</option>
-            <option>Maybe Later</option>
-            <option>Not Interested</option>
-          </select>
-          <input
-            type="date"
-            name="nextMeet"
-            value={form.nextMeet}
-            onChange={handleChange}
-            className="w-full border rounded-lg p-2"
           />
         </div>
-        <textarea
-          name="remarks"
-          value={form.remarks}
-          onChange={handleChange}
-          placeholder="Additional remarks"
-          className="w-full border rounded-lg p-2"
-        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="font-semibold text-gray-700">Customer Interest *</label>
+            <select
+              name="interest"
+              value={form.interest}
+              onChange={handleChange}
+              className="w-full border rounded-lg p-2 mt-1"
+              required
+            >
+              <option>Interested</option>
+              <option>Maybe Later</option>
+              <option>Not Interested</option>
+            </select>
+          </div>
+          <div>
+            <label className="font-semibold text-gray-700">Next Meeting Date</label>
+            <input
+              type="date"
+              name="nextMeet"
+              value={form.nextMeet}
+              onChange={handleChange}
+              className="w-full border rounded-lg p-2 mt-1"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="font-semibold text-gray-700">Additional Remarks</label>
+          <textarea
+            name="remarks"
+            value={form.remarks}
+            onChange={handleChange}
+            placeholder="Any additional comments or details"
+            className="w-full border rounded-lg p-2 mt-1"
+          />
+        </div>
 
         {photoPreview && (
           <div className="w-28 h-20 rounded-md overflow-hidden border mt-2">
@@ -357,13 +392,13 @@ function HotelVisitPanel({ user }) {
           </div>
         )}
 
-        <div className="flex gap-2 mt-3">
+        <div className="flex gap-2 mt-4">
           <button
             type="submit"
             disabled={uploading}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold"
           >
-            {uploading ? "Submitting..." : "Submit Visit Report"}
+            {uploading ? "Submitting..." : "Submit Report"}
           </button>
           <button
             type="button"
@@ -383,14 +418,15 @@ function HotelVisitPanel({ user }) {
   );
 }
 
+
 /* -------------------- Deal Confirm Panel -------------------- */
+
 function DealConfirmPanel({ user }) {
   const initial = {
     hotelName: "",
     ownerName: "",
     contact: "",
     dealAmount: "",
-    ownerApproval: "Pending",
     remarks: "",
   };
   const [form, setForm] = useState(initial);
@@ -398,12 +434,23 @@ function DealConfirmPanel({ user }) {
   const [paymentPreview, setPaymentPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [commission, setCommission] = useState(0);
 
+  // 🔹 Handle Form Change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((s) => ({ ...s, [name]: value }));
+
+    // 🔹 Auto set commission based on deal amount
+    if (name === "dealAmount") {
+      if (value === "199") setCommission(39);
+      else if (value === "399") setCommission(99);
+      else if (value === "799") setCommission(199);
+      else setCommission(0);
+    }
   };
 
+  // 🔹 Handle File Selection
   const handleFileCapture = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -412,7 +459,8 @@ function DealConfirmPanel({ user }) {
     }
   };
 
-  const uploadFileToStorage = (file, pathPrefix = "deal") =>
+  // 🔹 Upload Image to Firebase Storage
+  const uploadFileToStorage = (file, pathPrefix = "deals/payment") =>
     new Promise((resolve, reject) => {
       if (!file) return resolve(null);
       const filename = `${pathPrefix}/${user.uid}/${Date.now()}_${file.name}`;
@@ -420,30 +468,35 @@ function DealConfirmPanel({ user }) {
       const uploadTask = uploadBytesResumable(sRef, file);
       uploadTask.on(
         "state_changed",
-        (snapshot) => setUploadProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)),
+        (snapshot) =>
+          setUploadProgress(
+            Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)
+          ),
         (error) => reject(error),
         async () => resolve(await getDownloadURL(uploadTask.snapshot.ref))
       );
     });
 
+  // 🔹 Submit Form
   const handleSubmit = async (e) => {
     e.preventDefault();
     const requiredFields = ["hotelName", "ownerName", "contact", "dealAmount"];
-    for (let field of requiredFields) if (!form[field]) return alert(`Please fill ${field}`);
+    for (let field of requiredFields)
+      if (!form[field]) return alert(`Please fill ${field}`);
     if (!paymentFile) return alert("Payment proof is required");
 
     setUploading(true);
     try {
-      const paymentURL = await uploadFileToStorage(paymentFile, "deals/payment");
-      const calculatedReward = parseFloat(form.dealAmount) || 0;
+      const paymentURL = await uploadFileToStorage(paymentFile);
+      const calculatedReward = commission;
 
       await addDoc(collection(db, "workDetails"), {
         staffId: user.uid,
         staffEmail: user.email || null,
         type: "deal",
         ...form,
+        commission: calculatedReward,
         media: { paymentURL },
-        calculatedReward,
         rewardStatus: "pending",
         createdAt: serverTimestamp(),
       });
@@ -451,7 +504,8 @@ function DealConfirmPanel({ user }) {
       setForm(initial);
       setPaymentFile(null);
       setPaymentPreview(null);
-      alert("Deal submitted successfully.");
+      setCommission(0);
+      alert("✅ Deal submitted successfully (Pending approval).");
     } catch (err) {
       console.error(err);
       alert("Error submitting deal.");
@@ -463,66 +517,123 @@ function DealConfirmPanel({ user }) {
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 max-w-3xl mx-auto">
       <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-        <CheckCircle2 /> Deal Confirmation
+        <CheckCircle2 /> Deal Confirmation Form
       </h2>
 
-      <form className="space-y-3" onSubmit={handleSubmit}>
-        <input
-          name="hotelName"
-          value={form.hotelName}
-          onChange={handleChange}
-          placeholder="Hotel / Restaurant Name *"
-          className="w-full border rounded-lg p-2"
-          required
-        />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        {/* Hotel Name */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Hotel / Restaurant Name *
+          </label>
           <input
-            name="ownerName"
-            value={form.ownerName}
+            name="hotelName"
+            value={form.hotelName}
             onChange={handleChange}
-            placeholder="Owner / Manager Name *"
-            className="w-full border rounded-lg p-2"
-            required
-          />
-          <input
-            name="contact"
-            value={form.contact}
-            onChange={handleChange}
-            placeholder="Contact Number *"
+            placeholder="e.g. The Royal Inn"
             className="w-full border rounded-lg p-2"
             required
           />
         </div>
-        <input
-          name="dealAmount"
-          value={form.dealAmount}
-          onChange={handleChange}
-          placeholder="Deal Amount (₹) *"
-          className="w-full border rounded-lg p-2"
-          type="number"
-          required
-        />
 
-        <label className="cursor-pointer bg-white border p-2 rounded-lg flex items-center gap-2">
-          <input type="file" accept="image/*" onChange={handleFileCapture} className="hidden" required />
-          <UploadCloud /> Upload Payment Proof
-        </label>
+        {/* Owner and Contact */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Owner / Manager Name *
+            </label>
+            <input
+              name="ownerName"
+              value={form.ownerName}
+              onChange={handleChange}
+              placeholder="e.g. Mr. Sharma"
+              className="w-full border rounded-lg p-2"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Contact Number *
+            </label>
+            <input
+              name="contact"
+              value={form.contact}
+              onChange={handleChange}
+              placeholder="e.g. 9876543210"
+              className="w-full border rounded-lg p-2"
+              required
+            />
+          </div>
+        </div>
 
-        {paymentPreview && (
-          <div className="w-28 h-20 rounded-md overflow-hidden border mt-2">
-            <img src={paymentPreview} alt="preview" className="w-full h-full object-cover" />
+        {/* Deal Amount Dropdown */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Deal Amount (₹) *
+          </label>
+          <select
+            name="dealAmount"
+            value={form.dealAmount}
+            onChange={handleChange}
+            className="w-full border rounded-lg p-2"
+            required
+          >
+            <option value="">Select deal amount</option>
+            <option value="199">₹199</option>
+            <option value="399">₹399</option>
+            <option value="799">₹799</option>
+          </select>
+        </div>
+
+        {/* Auto-calculated commission */}
+        {commission > 0 && (
+          <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 font-medium">
+            You will earn ₹{commission} commission for this deal (after owner approval).
           </div>
         )}
 
-        <textarea
-          name="remarks"
-          value={form.remarks}
-          onChange={handleChange}
-          placeholder="Additional remarks"
-          className="w-full border rounded-lg p-2"
-        />
+        {/* Upload Proof */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Upload Payment Proof *
+          </label>
+          <label className="cursor-pointer bg-white border p-2 rounded-lg flex items-center gap-2">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileCapture}
+              className="hidden"
+              required
+            />
+            <UploadCloud /> Select Image
+          </label>
+          {paymentPreview && (
+            <div className="w-28 h-20 rounded-md overflow-hidden border mt-2">
+              <img
+                src={paymentPreview}
+                alt="preview"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+        </div>
 
-        <div className="flex gap-2 mt-3">
+        {/* Remarks */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Additional Remarks
+          </label>
+          <textarea
+            name="remarks"
+            value={form.remarks}
+            onChange={handleChange}
+            placeholder="Write any notes or comments here..."
+            className="w-full border rounded-lg p-2"
+          />
+        </div>
+
+        {/* Submit Buttons */}
+        <div className="flex gap-2 mt-4">
           <button
             type="submit"
             disabled={uploading}
@@ -536,6 +647,7 @@ function DealConfirmPanel({ user }) {
               setForm(initial);
               setPaymentFile(null);
               setPaymentPreview(null);
+              setCommission(0);
             }}
             className="px-4 py-2 rounded-lg border"
           >
@@ -546,6 +658,7 @@ function DealConfirmPanel({ user }) {
     </div>
   );
 }
+
 
 /* -------------------- Earnings Overview -------------------- */
 function EarningsOverview({ user }) {
@@ -615,7 +728,7 @@ function EarningsOverview({ user }) {
                 <strong>Money:</strong> {report.rewardStatus || "N/A"}
               </p>
                <p>
-                <strong>Visit Type -</strong> {report.type || "N/A"}
+                <strong>Type :</strong> {report.type || "N/A"}
               </p>
               <p>
                 <strong>Date:</strong>{report.visitedDate || "N/A"}

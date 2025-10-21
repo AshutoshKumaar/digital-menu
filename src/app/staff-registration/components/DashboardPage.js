@@ -8,9 +8,10 @@ import {
   Sparkles,
   Star,
   Rocket,
+  Clock
 } from "lucide-react";
 
-const DashboardPage = ({ earning = 0 }) => {
+const DashboardPage = ({ earning = { confirmed: 0, pending: 0 } }) => {
   return (
     <div className="p-4 md:p-10 bg-gray-50 min-h-screen">
       {/* ---------------- HEADER ---------------- */}
@@ -37,13 +38,13 @@ const DashboardPage = ({ earning = 0 }) => {
         <div className="flex items-center justify-between flex-wrap gap-5">
           <div>
             <h2 className="text-lg font-semibold text-gray-700 mb-1">
-              Total Earnings
+              Total Confirmed Earnings
             </h2>
             <p className="text-4xl font-extrabold text-blue-700 mb-2">
-              ₹{earning.toLocaleString()}
+              ₹{earning.confirmed.toLocaleString()}
             </p>
             <p className="text-gray-500 text-sm">
-              ₹10 per verified visit + bonus commission per closed deal
+              ₹10 per verified visit + bonus per closed deal
             </p>
           </div>
           <div className="bg-blue-50 p-4 rounded-2xl">
@@ -51,6 +52,21 @@ const DashboardPage = ({ earning = 0 }) => {
           </div>
         </div>
       </div>
+
+      {/* ---------------- PENDING REWARDS ---------------- */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 shadow-sm my-4">
+        <div className="flex items-center gap-3 mb-2">
+          <Clock className="text-yellow-600 w-6 h-6" />
+          <h3 className="text-lg font-semibold text-yellow-700">Pending Rewards</h3>
+        </div>
+        <p className="text-3xl font-bold text-yellow-800">
+          ₹{earning.pending.toLocaleString()}
+        </p>
+        <p className="text-sm text-yellow-600 mt-1">
+          These rewards will be added once verified by admin.
+        </p>
+      </div>
+    
 
       {/* ---------------- REWARD STRUCTURE ---------------- */}
       <div className="grid md:grid-cols-3 gap-8 mb-12">
