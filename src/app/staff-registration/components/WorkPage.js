@@ -152,7 +152,6 @@ function TabButton({ children, active, onClick, icon }) {
 }
 
 /* -------------------- Hotel Visit Panel -------------------- */
-/* -------------------- Hotel Visit Panel -------------------- */
 function HotelVisitPanel({ user }) {
   const initial = {
     hotelName: "",
@@ -185,15 +184,16 @@ function HotelVisitPanel({ user }) {
     setForm((s) => ({ ...s, [name]: value }));
   };
 
-  // ✅ Fix: Prevent form reload on camera capture
+  // ✅ FIX: no page reload + camera trigger works on phone
   const handleCapture = (e) => {
-    e.preventDefault(); // stop form reload on mobile
+    e.stopPropagation(); // stop bubbling
     const file = e.target.files?.[0];
     if (file) {
       setPhotoFile(file);
       setPhotoPreview(URL.createObjectURL(file));
     }
 
+    // get live GPS location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) =>
@@ -359,13 +359,7 @@ function HotelVisitPanel({ user }) {
             <label className="font-semibold text-gray-700">
               Capture Photo & Location *
             </label>
-            <label
-              htmlFor="photo-input"
-              className="cursor-pointer bg-white border p-2 mt-1 rounded-lg flex items-center gap-2"
-              onClick={(e) => e.preventDefault()} // ✅ Prevents form submit on mobile
-            >
-              <Camera /> Take Photo
-            </label>
+            {/* ✅ File input directly triggers camera */}
             <input
               id="photo-input"
               type="file"
@@ -374,6 +368,12 @@ function HotelVisitPanel({ user }) {
               onChange={handleCapture}
               className="hidden"
             />
+            <label
+              htmlFor="photo-input"
+              className="cursor-pointer bg-white border p-2 mt-1 rounded-lg flex items-center gap-2 hover:bg-gray-50"
+            >
+              <Camera /> Take Photo
+            </label>
           </div>
         </div>
 
