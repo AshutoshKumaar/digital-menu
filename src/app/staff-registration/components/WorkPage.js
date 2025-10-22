@@ -43,7 +43,7 @@ export default function WorkDashboardPage() {
       setPendingCount(0);
       return;
     }
-    const q = query(collection(db, "workdetails"), where("staffId", "==", user.uid));
+    const q = query(collection(db, "workDetails"), where("staffId", "==", user.uid));
     const unsub = onSnapshot(q, (snapshot) => {
       let approved = 0;
       let pending = 0;
@@ -81,7 +81,7 @@ export default function WorkDashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-5">
       {/* Header */}
-      {/* <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-gray-200 flex items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-gray-200 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Work Dashboard</h1>
           <p className="text-sm text-gray-600">
@@ -99,7 +99,7 @@ export default function WorkDashboardPage() {
           </p>
           <p className="text-xs text-gray-500 mt-1">{pendingCount} pending report(s)</p>
         </div>
-      </div> */}
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-3 mb-6 flex-wrap">
@@ -179,21 +179,21 @@ function HotelVisitPanel({ user }) {
     }));
   }, []);
 
+  // ✅ Handle Form Input
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((s) => ({ ...s, [name]: value }));
   };
 
-  // ✅ FIX: no page reload + camera trigger works on phone
+  // ✅ Handle Camera / File Upload
   const handleCapture = (e) => {
-    e.stopPropagation(); // stop bubbling
+    e.stopPropagation();
     const file = e.target.files?.[0];
-    if (file) {
-      setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
 
-    // get live GPS location
+    // get live GPS
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) =>
@@ -207,28 +207,33 @@ function HotelVisitPanel({ user }) {
     }
   };
 
-  const uploadFileToStorage = (file, pathPrefix = "work") =>
+  // ✅ Upload File to Firebase Storage
+  const uploadFileToStorage = (file, pathPrefix = "visits/photos") =>
     new Promise((resolve, reject) => {
       if (!file) return resolve(null);
-      const filename = `${pathPrefix}/${user.uid}/${Date.now()}_${file.name}`;
-      const sRef = storageRef(storage, filename);
+      const filePath = `${pathPrefix}/${user.uid}/${Date.now()}_${file.name}`;
+      const sRef = storageRef(getStorage(), filePath);
       const uploadTask = uploadBytesResumable(sRef, file);
+
       uploadTask.on(
         "state_changed",
-        (snapshot) =>
-          setUploadProgress(
-            Math.round(
-              (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-            )
-          ),
+        (snapshot) => {
+          const progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(Math.round(progress));
+        },
         (error) => reject(error),
-        async () =>
-          resolve(await getDownloadURL(uploadTask.snapshot.ref))
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadURL);
+        }
       );
     });
 
+  // ✅ Submit Form
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const requiredFields = [
       "hotelName",
       "ownerName",
@@ -240,12 +245,12 @@ function HotelVisitPanel({ user }) {
     ];
     for (let field of requiredFields)
       if (!form[field]) return alert(`Please fill ${field}`);
-    if (!photoFile) return alert("Photo is required");
-    if (!location) return alert("Location is required");
+    if (!photoFile) return alert("Please take a photo first!");
+    if (!location) return alert("Please allow location access!");
 
     setUploading(true);
     try {
-      const photoURL = await uploadFileToStorage(photoFile, "visits/photos");
+      const photoURL = await uploadFileToStorage(photoFile);
       const calculatedReward = 10;
 
       await addDoc(collection(db, "workDetails"), {
@@ -260,22 +265,22 @@ function HotelVisitPanel({ user }) {
         createdAt: serverTimestamp(),
       });
 
+      alert("✅ Report submitted successfully!");
       setForm(initial);
       setPhotoFile(null);
       setPhotoPreview(null);
       setLocation(null);
       setUploadProgress(0);
-      alert("Report submitted successfully.");
     } catch (err) {
       console.error(err);
-      alert("Error submitting report.");
+      alert("❌ Error submitting report: " + err.message);
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 max-w-3xl mx-auto">
+    <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-200 max-w-3xl mx-auto">
       <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
         <Building2 /> Hotel Visit Report
       </h2>
@@ -359,7 +364,6 @@ function HotelVisitPanel({ user }) {
             <label className="font-semibold text-gray-700">
               Capture Photo & Location *
             </label>
-            {/* ✅ File input directly triggers camera */}
             <input
               id="photo-input"
               type="file"
@@ -370,13 +374,14 @@ function HotelVisitPanel({ user }) {
             />
             <label
               htmlFor="photo-input"
-              className="cursor-pointer bg-white border p-2 mt-1 rounded-lg flex items-center gap-2 hover:bg-gray-50"
+              className="cursor-pointer bg-blue-600 text-white px-3 py-2 mt-1 rounded-lg inline-flex items-center gap-2 hover:bg-blue-700"
             >
               <Camera /> Take Photo
             </label>
           </div>
         </div>
 
+        {/* Location Info */}
         {location && (
           <div className="text-sm text-gray-600 mt-1 p-2 border rounded-lg">
             📍 Lat: {location.latitude.toFixed(5)}, Lng:{" "}
@@ -391,6 +396,16 @@ function HotelVisitPanel({ user }) {
               src={photoPreview}
               alt="preview"
               className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
+        {/* Progress Bar */}
+        {uploading && uploadProgress > 0 && (
+          <div className="w-full bg-gray-200 rounded-full h-3 mt-2">
+            <div
+              className="bg-green-600 h-3 rounded-full"
+              style={{ width: `${uploadProgress}%` }}
             />
           </div>
         )}
@@ -462,7 +477,7 @@ function HotelVisitPanel({ user }) {
           <button
             type="submit"
             disabled={uploading}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold"
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold"
           >
             {uploading ? "Submitting..." : "Submit Report"}
           </button>
@@ -483,6 +498,7 @@ function HotelVisitPanel({ user }) {
     </div>
   );
 }
+
 
 
 /* -------------------- Deal Confirm Panel -------------------- */
