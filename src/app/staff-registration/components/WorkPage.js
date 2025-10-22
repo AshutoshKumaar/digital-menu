@@ -43,6 +43,7 @@ export default function WorkDashboardPage() {
       setPendingCount(0);
       return;
     }
+    // FIX: Changed collection name to "workDetails" (consistent casing)
     const q = query(collection(db, "workDetails"), where("staffId", "==", user.uid));
     const unsub = onSnapshot(q, (snapshot) => {
       let approved = 0;
@@ -81,25 +82,7 @@ export default function WorkDashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-5">
       {/* Header */}
-      <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-gray-200 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Work Dashboard</h1>
-          <p className="text-sm text-gray-600">
-            Hello{" "}
-            <span className="font-medium text-blue-600">
-              {user.displayName || user.email.split("@")[0]}
-            </span>{" "}
-            — share reports to earn.
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-500">Approved Earnings</p>
-          <p className="text-2xl font-bold text-blue-700">
-            ₹{approvedEarnings.toLocaleString()}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">{pendingCount} pending report(s)</p>
-        </div>
-      </div>
+     
 
       {/* Tabs */}
       <div className="flex gap-3 mb-6 flex-wrap">
@@ -179,6 +162,16 @@ function HotelVisitPanel({ user }) {
     }));
   }, []);
 
+  // NEW: Memory cleanup for photo preview
+  useEffect(() => {
+    // Revoke the old object URL when the component unmounts or photoPreview changes
+    return () => {
+      if (photoPreview) {
+        URL.revokeObjectURL(photoPreview);
+      }
+    };
+  }, [photoPreview]);
+
   // ✅ Handle Form Input
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -190,6 +183,12 @@ function HotelVisitPanel({ user }) {
     e.stopPropagation();
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    // Revoke the previous URL before creating a new one to manage memory
+    if (photoPreview) {
+        URL.revokeObjectURL(photoPreview);
+    }
+    
     setPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
 
@@ -212,7 +211,9 @@ function HotelVisitPanel({ user }) {
     new Promise((resolve, reject) => {
       if (!file) return resolve(null);
       const filePath = `${pathPrefix}/${user.uid}/${Date.now()}_${file.name}`;
-      const sRef = storageRef(getStorage(), filePath);
+      
+      // FIX: Used 'storage' directly instead of calling getStorage()
+      const sRef = storageRef(storage, filePath); 
       const uploadTask = uploadBytesResumable(sRef, file);
 
       uploadTask.on(
@@ -486,6 +487,8 @@ function HotelVisitPanel({ user }) {
             onClick={() => {
               setForm(initial);
               setPhotoFile(null);
+              // Clean up on reset
+              if (photoPreview) URL.revokeObjectURL(photoPreview); 
               setPhotoPreview(null);
               setLocation(null);
             }}
@@ -517,6 +520,15 @@ function DealConfirmPanel({ user }) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [commission, setCommission] = useState(0);
+  
+  // NEW: Memory cleanup for payment preview
+  useEffect(() => {
+    return () => {
+      if (paymentPreview) {
+        URL.revokeObjectURL(paymentPreview);
+      }
+    };
+  }, [paymentPreview]);
 
   // 🔹 Handle Form Change
   const handleChange = (e) => {
@@ -536,6 +548,10 @@ function DealConfirmPanel({ user }) {
   const handleFileCapture = (e) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Revoke the previous URL before creating a new one
+      if (paymentPreview) {
+        URL.revokeObjectURL(paymentPreview);
+      }
       setPaymentFile(file);
       setPaymentPreview(URL.createObjectURL(file));
     }
@@ -585,6 +601,8 @@ function DealConfirmPanel({ user }) {
 
       setForm(initial);
       setPaymentFile(null);
+      // Clean up after successful submission
+      if (paymentPreview) URL.revokeObjectURL(paymentPreview);
       setPaymentPreview(null);
       setCommission(0);
       alert("✅ Deal submitted successfully (Pending approval).");
@@ -728,6 +746,8 @@ function DealConfirmPanel({ user }) {
             onClick={() => {
               setForm(initial);
               setPaymentFile(null);
+              // Clean up on reset
+              if (paymentPreview) URL.revokeObjectURL(paymentPreview);
               setPaymentPreview(null);
               setCommission(0);
             }}
@@ -822,5 +842,3 @@ function EarningsOverview({ user }) {
     </div>
   );
 }
-
-
