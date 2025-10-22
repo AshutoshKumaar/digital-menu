@@ -165,6 +165,7 @@ function HotelVisitPanel({ user }) {
     nextMeet: "",
     remarks: "",
   };
+
   const [form, setForm] = useState(initial);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -173,7 +174,10 @@ function HotelVisitPanel({ user }) {
   const [location, setLocation] = useState(null);
 
   useEffect(() => {
-    setForm((f) => ({ ...f, visitedDate: new Date().toISOString().slice(0, 10) }));
+    setForm((f) => ({
+      ...f,
+      visitedDate: new Date().toISOString().slice(0, 10),
+    }));
   }, []);
 
   const handleChange = (e) => {
@@ -181,15 +185,22 @@ function HotelVisitPanel({ user }) {
     setForm((s) => ({ ...s, [name]: value }));
   };
 
+  // ✅ Fix: Prevent form reload on camera capture
   const handleCapture = (e) => {
+    e.preventDefault(); // stop form reload on mobile
     const file = e.target.files?.[0];
     if (file) {
       setPhotoFile(file);
       setPhotoPreview(URL.createObjectURL(file));
     }
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => setLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        (pos) =>
+          setLocation({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          }),
         (err) => console.error("Location error:", err),
         { enableHighAccuracy: true }
       );
@@ -204,16 +215,31 @@ function HotelVisitPanel({ user }) {
       const uploadTask = uploadBytesResumable(sRef, file);
       uploadTask.on(
         "state_changed",
-        (snapshot) => setUploadProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)),
+        (snapshot) =>
+          setUploadProgress(
+            Math.round(
+              (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+            )
+          ),
         (error) => reject(error),
-        async () => resolve(await getDownloadURL(uploadTask.snapshot.ref))
+        async () =>
+          resolve(await getDownloadURL(uploadTask.snapshot.ref))
       );
     });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const requiredFields = ["hotelName", "ownerName", "contact", "address", "visitedDate", "whatSaid", "interest"];
-    for (let field of requiredFields) if (!form[field]) return alert(`Please fill ${field}`);
+    const requiredFields = [
+      "hotelName",
+      "ownerName",
+      "contact",
+      "address",
+      "visitedDate",
+      "whatSaid",
+      "interest",
+    ];
+    for (let field of requiredFields)
+      if (!form[field]) return alert(`Please fill ${field}`);
     if (!photoFile) return alert("Photo is required");
     if (!location) return alert("Location is required");
 
@@ -221,6 +247,7 @@ function HotelVisitPanel({ user }) {
     try {
       const photoURL = await uploadFileToStorage(photoFile, "visits/photos");
       const calculatedReward = 10;
+
       await addDoc(collection(db, "workDetails"), {
         staffId: user.uid,
         staffEmail: user.email || null,
@@ -232,6 +259,7 @@ function HotelVisitPanel({ user }) {
         rewardStatus: "pending",
         createdAt: serverTimestamp(),
       });
+
       setForm(initial);
       setPhotoFile(null);
       setPhotoPreview(null);
@@ -253,8 +281,11 @@ function HotelVisitPanel({ user }) {
       </h2>
 
       <form className="space-y-3" onSubmit={handleSubmit}>
+        {/* Hotel Name */}
         <div>
-          <label className="font-semibold text-gray-700">Hotel / Restaurant Name *</label>
+          <label className="font-semibold text-gray-700">
+            Hotel / Restaurant Name *
+          </label>
           <input
             name="hotelName"
             value={form.hotelName}
@@ -265,9 +296,12 @@ function HotelVisitPanel({ user }) {
           />
         </div>
 
+        {/* Owner & Contact */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="font-semibold text-gray-700">Owner / Manager Name *</label>
+            <label className="font-semibold text-gray-700">
+              Owner / Manager Name *
+            </label>
             <input
               name="ownerName"
               value={form.ownerName}
@@ -278,7 +312,9 @@ function HotelVisitPanel({ user }) {
             />
           </div>
           <div>
-            <label className="font-semibold text-gray-700">Contact Number *</label>
+            <label className="font-semibold text-gray-700">
+              Contact Number *
+            </label>
             <input
               name="contact"
               value={form.contact}
@@ -290,6 +326,7 @@ function HotelVisitPanel({ user }) {
           </div>
         </div>
 
+        {/* Address */}
         <div>
           <label className="font-semibold text-gray-700">Hotel Address *</label>
           <textarea
@@ -302,9 +339,12 @@ function HotelVisitPanel({ user }) {
           />
         </div>
 
+        {/* Visit Date + Camera */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="font-semibold text-gray-700">Visited Date *</label>
+            <label className="font-semibold text-gray-700">
+              Visited Date *
+            </label>
             <input
               type="date"
               name="visitedDate"
@@ -314,30 +354,52 @@ function HotelVisitPanel({ user }) {
               required
             />
           </div>
+
           <div>
-            <label className="font-semibold text-gray-700">Capture Photo & Location *</label>
-            <label className="cursor-pointer bg-white border p-2 mt-1 rounded-lg flex items-center gap-2">
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleCapture}
-                className="hidden"
-                required
-              />
+            <label className="font-semibold text-gray-700">
+              Capture Photo & Location *
+            </label>
+            <label
+              htmlFor="photo-input"
+              className="cursor-pointer bg-white border p-2 mt-1 rounded-lg flex items-center gap-2"
+              onClick={(e) => e.preventDefault()} // ✅ Prevents form submit on mobile
+            >
               <Camera /> Take Photo
             </label>
+            <input
+              id="photo-input"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleCapture}
+              className="hidden"
+            />
           </div>
         </div>
 
         {location && (
           <div className="text-sm text-gray-600 mt-1 p-2 border rounded-lg">
-            📍 Lat: {location.latitude.toFixed(5)}, Lng: {location.longitude.toFixed(5)}
+            📍 Lat: {location.latitude.toFixed(5)}, Lng:{" "}
+            {location.longitude.toFixed(5)}
           </div>
         )}
 
+        {/* Preview */}
+        {photoPreview && (
+          <div className="w-32 h-24 rounded-md overflow-hidden border mt-2">
+            <img
+              src={photoPreview}
+              alt="preview"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
+        {/* What Said */}
         <div>
-          <label className="font-semibold text-gray-700">What Customer Said *</label>
+          <label className="font-semibold text-gray-700">
+            What Customer Said *
+          </label>
           <textarea
             name="whatSaid"
             value={form.whatSaid}
@@ -348,9 +410,12 @@ function HotelVisitPanel({ user }) {
           />
         </div>
 
+        {/* Interest + Next Meet */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="font-semibold text-gray-700">Customer Interest *</label>
+            <label className="font-semibold text-gray-700">
+              Customer Interest *
+            </label>
             <select
               name="interest"
               value={form.interest}
@@ -363,8 +428,11 @@ function HotelVisitPanel({ user }) {
               <option>Not Interested</option>
             </select>
           </div>
+
           <div>
-            <label className="font-semibold text-gray-700">Next Meeting Date</label>
+            <label className="font-semibold text-gray-700">
+              Next Meeting Date
+            </label>
             <input
               type="date"
               name="nextMeet"
@@ -375,8 +443,11 @@ function HotelVisitPanel({ user }) {
           </div>
         </div>
 
+        {/* Remarks */}
         <div>
-          <label className="font-semibold text-gray-700">Additional Remarks</label>
+          <label className="font-semibold text-gray-700">
+            Additional Remarks
+          </label>
           <textarea
             name="remarks"
             value={form.remarks}
@@ -386,12 +457,7 @@ function HotelVisitPanel({ user }) {
           />
         </div>
 
-        {photoPreview && (
-          <div className="w-28 h-20 rounded-md overflow-hidden border mt-2">
-            <img src={photoPreview} alt="preview" className="w-full h-full object-cover" />
-          </div>
-        )}
-
+        {/* Buttons */}
         <div className="flex gap-2 mt-4">
           <button
             type="submit"

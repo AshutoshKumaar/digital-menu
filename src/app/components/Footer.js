@@ -10,7 +10,7 @@ export default function Footer() {
             {/* Column 1: Company Info */}
             <div className="col-span-2 md:col-span-1">
                 <DigitalBharatMenuLogo className="h-12 mb-4" />
-                <p className="text-sm text-gray-400 mb-6">Modern, Simple & Smart Ordering System</p>
+                <p className="text-sm text-gray-400 my-2">Modern, Simple & Smart Ordering System</p>
                 <h4 className="font-semibold mb-3 border-b border-indigo-400/30 pb-1">Terms & Conditions</h4>
                 <ul className="text-xs space-y-2 text-gray-400">
                     <li><CheckCircle className="w-3 h-3 inline mr-2 text-green-400"/>Monthly subscription is non-refundable</li>

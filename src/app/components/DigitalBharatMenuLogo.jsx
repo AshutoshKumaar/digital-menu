@@ -42,7 +42,7 @@ const DigitalBharatMenuLogo = ({ className = 'h-16', textColor = 'text-gray-900'
         </div>
         
         {/* Line 3: menu (Standard, descriptive) */}
-        <div className="text-lg font-medium text-gray-700 leading-2">
+        <div className="text-lg font-medium text-gray-500 leading-2">
           menu
         </div>
       </div>

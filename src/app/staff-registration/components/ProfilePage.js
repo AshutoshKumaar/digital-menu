@@ -47,7 +47,7 @@ const ProfilePage = () => {
 
   const handleLogout = async () => {
     await signOut(auth);
-    router.push("/staff-login"); // redirect after logout
+    router.push("/staff-registration/staff-login"); // redirect after logout
   };
 
   if (loading)
