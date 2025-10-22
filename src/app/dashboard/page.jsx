@@ -13,7 +13,6 @@ const josefinSans = Josefin_Sans({
 });
 
 export default function DashboardPage() {
-  useFCM();
   const [user, setUser] = useState(null);
 
   useEffect(() => {
