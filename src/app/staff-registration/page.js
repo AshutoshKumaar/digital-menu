@@ -7,21 +7,12 @@ import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import { useRouter } from "next/navigation";
 import { Josefin_Sans } from "next/font/google";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-} from "firebase/auth";
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import { auth, db } from "@/app/firebase/config"; // ✅ your Firebase initialized file
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "@/app/firebase/config";
 
 const josefin = Josefin_Sans({ subsets: ["latin"] });
 
-// 🌍 Country → State → District data
 const locationData = {
   India: {
     Bihar: ["Katihar", "Purnia", "Patna", "Bhagalpur"],
@@ -34,7 +25,7 @@ const locationData = {
   },
 };
 
-// ✅ Zod Schema
+// Zod Schema
 const formSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   email: z.string().email("Invalid email address"),
@@ -60,7 +51,6 @@ export default function Registration() {
   const [loading, setLoading] = useState(false);
   const [firebaseError, setFirebaseError] = useState("");
 
-  
   const {
     register,
     handleSubmit,
@@ -90,50 +80,88 @@ export default function Registration() {
     }
   }, [selectedState]);
 
-  const onSubmit = async (data) => {
+  // ---------------- Razorpay Subscription Integration ----------------
+  const startSubscription = async (formData) => {
     setLoading(true);
     setFirebaseError("");
 
     try {
-      // ✅ 1. Create user in Firebase Authentication
+      // 1️⃣ Create user in Firebase Authentication first (so we have UID for subscription notes)
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        data.email,
-        data.password
+        formData.email,
+        formData.password
       );
       const user = userCredential.user;
 
-      // ✅ 2. Save data in Firestore (salespersons/{uid})
-      await setDoc(doc(db, "salespersons", user.uid), {
-        uid: user.uid,
-        fullName: data.fullName,
-        email: data.email,
-        phone: data.phone,
-        country: data.country,
-        state: data.state,
-        district: data.district,
-        agentCode: data.agentCode,
-        createdAt: serverTimestamp(),
+      // 2️⃣ Call backend API to create Razorpay subscription
+      const res = await fetch("/api/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.uid }),
       });
+      const subscriptionData = await res.json();
 
-      alert("✅ Registration Successful!");
-      router.push("/staff-registration/staff-login"); // redirect after success
+      if (!res.ok) throw new Error(subscriptionData.error || "Subscription failed");
+
+      // 3️⃣ Open Razorpay checkout with subscription id
+      const options = {
+        key: "rzp_test_RXqiuDDEpmIeNG",
+        subscription_id: subscriptionData.id,
+        name: "Digital Menu App",
+        description: "Monthly ₹99 subscription",
+        prefill: {
+          name: formData.fullName,
+          email: formData.email,
+          contact: formData.phone,
+        },
+        theme: { color: "#4f46e5" },
+        handler: async function (response) {
+          // Payment success → store user data in Firestore
+          await setDoc(doc(db, "salespersons", user.uid), {
+            uid: user.uid,
+            fullName: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            country: formData.country,
+            state: formData.state,
+            district: formData.district,
+            agentCode: formData.agentCode,
+            walletBalance: 99,
+            createdAt: serverTimestamp(),
+            razorpay_subscription_id: subscriptionData.id,
+          });
+
+          alert("✅ Registration & Subscription Successful! ₹99 wallet added.");
+          router.push("/staff-registration/staff-login");
+        },
+        modal: {
+          ondismiss: async function () {
+            // Payment cancelled → delete user in Firebase Auth
+            await user.delete();
+            alert("Payment cancelled. Registration not completed.");
+            setLoading(false);
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     } catch (error) {
-      console.error("Error during registration:", error);
+      console.error(error);
       setFirebaseError(error.message || "Something went wrong!");
-    } finally {
       setLoading(false);
     }
   };
 
+  const onSubmit = (data) => startSubscription(data);
+
   return (
     <div className={josefin.className}>
-      {/* Static Navbar */}
       <nav className="fixed top-0 left-0 w-full z-50">
         <Navbar />
       </nav>
 
-      {/* Registration Section */}
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white pt-28 pb-6 px-4">
         <form
           onSubmit={handleSubmit(onSubmit)}
@@ -144,9 +172,7 @@ export default function Registration() {
           </h2>
 
           {firebaseError && (
-            <p className="text-red-500 text-center text-sm">
-              {firebaseError}
-            </p>
+            <p className="text-red-500 text-center text-sm">{firebaseError}</p>
           )}
 
           {/* Full Name */}
@@ -160,9 +186,7 @@ export default function Registration() {
               className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
             />
             {errors.fullName && (
-              <p className="text-red-500 text-sm">
-                {errors.fullName.message}
-              </p>
+              <p className="text-red-500 text-sm">{errors.fullName.message}</p>
             )}
           </div>
 
@@ -208,9 +232,7 @@ export default function Registration() {
               className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
             />
             {errors.password && (
-              <p className="text-red-500 text-sm">
-                {errors.password.message}
-              </p>
+              <p className="text-red-500 text-sm">{errors.password.message}</p>
             )}
           </div>
 
@@ -275,9 +297,7 @@ export default function Registration() {
               ))}
             </select>
             {errors.district && (
-              <p className="text-red-500 text-sm">
-                {errors.district.message}
-              </p>
+              <p className="text-red-500 text-sm">{errors.district.message}</p>
             )}
           </div>
 
@@ -292,9 +312,7 @@ export default function Registration() {
               className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
             />
             {errors.agentCode && (
-              <p className="text-red-500 text-sm">
-                {errors.agentCode.message}
-              </p>
+              <p className="text-red-500 text-sm">{errors.agentCode.message}</p>
             )}
           </div>
 
@@ -306,14 +324,15 @@ export default function Registration() {
               loading ? "bg-gray-400" : "bg-indigo-600 hover:bg-indigo-700"
             } text-white py-3 rounded-lg font-semibold transition-all`}
           >
-            {loading ? "Registering..." : "Register"}
+            {loading ? "Processing Subscription..." : "Pay ₹99 & Register"}
           </button>
 
-          {/* 🔗 Login Redirect */}
           <p className="text-center text-sm text-gray-600 mt-3">
             Already have an account?{" "}
             <span
-              onClick={() => router.push("staff-registration/staff-login")}
+              onClick={() =>
+                router.push("staff-registration/staff-login")
+              }
               className="text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
             >
               Login here

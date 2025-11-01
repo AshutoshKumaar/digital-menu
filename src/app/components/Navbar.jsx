@@ -7,10 +7,10 @@ function Navbar() {
      const [isOpen, setIsOpen] = useState(false);
     
         const navLinks = [
-            { href: "#features", label: "Features" },
-            { href: "#benefits", label: "Benefits" },
-            { href: "#pricing", label: "Pricing" },
-            { href: "#contact", label: "Contact" },
+            { href: "/privacy-policy", label: "Our Policy" },
+            { href: "/refund-policy", label: "Refund" },
+            { href: "/terms-and-conditions", label: "T & C" },
+            { href: "/contact", label: "Contact" },
             { href: "/careers", label: "Careers" },
         ];
   return (
@@ -18,7 +18,7 @@ function Navbar() {
        <header className="sticky top-0 z-[100] bg-white bg-opacity-95 backdrop-blur-sm shadow-xl">
             <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
                 {/* Logo */}
-                <a href="#" className="text-2xl sm:text-3xl font-extrabold text-indigo-700 tracking-wider transition duration-300 hover:text-indigo-900">
+                <a href="/" className="text-2xl sm:text-3xl font-extrabold text-indigo-700 tracking-wider transition duration-300 hover:text-indigo-900">
                     <DigitalBharatMenuLogo  className="h-16"  />
                    
                 </a>

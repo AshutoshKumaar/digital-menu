@@ -23,10 +23,10 @@ const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
 
     const navLinks = [
-        { href: "#features", label: "Features" },
-        { href: "#benefits", label: "Benefits" },
-        { href: "#pricing", label: "Pricing" },
-        { href: "#contact", label: "Contact" },
+        { href: "/privacy-policy", label: "Our Policy" },
+        { href: "/refund-policy", label: "Refund" },
+        { href: "/terms-and-conditions", label: "T & C" },
+        { href: "/contact", label: "Contact" },
         { href: "/careers", label: "Careers" },
     ];
 
@@ -34,10 +34,10 @@ const Navbar = () => {
         <header className="sticky top-0 z-[100] bg-white bg-opacity-95 backdrop-blur-sm shadow-xl">
             <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
                 {/* Logo */}
-                <a href="#" className="text-2xl sm:text-3xl font-extrabold text-indigo-700 tracking-wider transition duration-300 hover:text-indigo-900">
+                <Link href= "/" className="text-2xl sm:text-3xl font-extrabold text-indigo-700 tracking-wider transition duration-300 hover:text-indigo-900">
                     <DigitalBharatMenuLogo  className="h-16"  />
                    
-                </a>
+                </Link>
                 
                 {/* Desktop Navigation Links */}
                 <nav className="hidden md:flex space-x-8 text-gray-700 font-medium">
@@ -141,9 +141,10 @@ const Footer = () => (
             <div>
                 <h3 className="text-xl font-bold mb-4 text-indigo-400">Quick Links</h3>
                 <ul className="space-y-2 text-gray-400">
-                    <li><a href="#features" className="hover:text-white transition">Features</a></li>
-                    <li><a href="#pricing" className="hover:text-white transition">Pricing</a></li>
-                    <li><a href="#benefits" className="hover:text-white transition">Benefits</a></li>
+                    <li><a href="/privacy-policy" className="hover:text-white transition">Privacy Policy</a></li>
+                    <li><a href="/refund-policy" className="hover:text-white transition">Refund Policy</a></li>
+                    <li><a href="/terms-and-conditions" className="hover:text-white transition">Terms and Conditions</a></li>
+                    <li><a href="/contact" className="hover:text-white transition">Contact</a></li>
                 </ul>
             </div>
             

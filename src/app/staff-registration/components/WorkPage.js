@@ -18,6 +18,7 @@ import {
   Camera,
   UploadCloud,
   FileText,
+  Loader2
 } from "lucide-react";
 import { getAuth } from "firebase/auth";
 
@@ -162,37 +163,25 @@ function HotelVisitPanel({ user }) {
     }));
   }, []);
 
-  // NEW: Memory cleanup for photo preview
   useEffect(() => {
-    // Revoke the old object URL when the component unmounts or photoPreview changes
     return () => {
-      if (photoPreview) {
-        URL.revokeObjectURL(photoPreview);
-      }
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
     };
   }, [photoPreview]);
 
-  // ✅ Handle Form Input
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((s) => ({ ...s, [name]: value }));
   };
 
-  // ✅ Handle Camera / File Upload
   const handleCapture = (e) => {
-    e.stopPropagation();
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    // Revoke the previous URL before creating a new one to manage memory
-    if (photoPreview) {
-        URL.revokeObjectURL(photoPreview);
-    }
-    
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+
     setPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
 
-    // get live GPS
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) =>
@@ -206,14 +195,11 @@ function HotelVisitPanel({ user }) {
     }
   };
 
-  // ✅ Upload File to Firebase Storage
   const uploadFileToStorage = (file, pathPrefix = "visits/photos") =>
     new Promise((resolve, reject) => {
       if (!file) return resolve(null);
       const filePath = `${pathPrefix}/${user.uid}/${Date.now()}_${file.name}`;
-      
-      // FIX: Used 'storage' directly instead of calling getStorage()
-      const sRef = storageRef(storage, filePath); 
+      const sRef = storageRef(storage, filePath);
       const uploadTask = uploadBytesResumable(sRef, file);
 
       uploadTask.on(
@@ -231,10 +217,8 @@ function HotelVisitPanel({ user }) {
       );
     });
 
-  // ✅ Submit Form
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const requiredFields = [
       "hotelName",
       "ownerName",
@@ -244,6 +228,7 @@ function HotelVisitPanel({ user }) {
       "whatSaid",
       "interest",
     ];
+
     for (let field of requiredFields)
       if (!form[field]) return alert(`Please fill ${field}`);
     if (!photoFile) return alert("Please take a photo first!");
@@ -281,228 +266,242 @@ function HotelVisitPanel({ user }) {
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-200 max-w-3xl mx-auto">
-      <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-        <Building2 /> Hotel Visit Report
-      </h2>
-
-      <form className="space-y-3" onSubmit={handleSubmit}>
-        {/* Hotel Name */}
-        <div>
-          <label className="font-semibold text-gray-700">
-            Hotel / Restaurant Name *
-          </label>
-          <input
-            name="hotelName"
-            value={form.hotelName}
-            onChange={handleChange}
-            placeholder="Enter hotel or restaurant name"
-            className="w-full border rounded-lg p-2 mt-1"
-            required
-          />
-        </div>
-
-        {/* Owner & Contact */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="font-semibold text-gray-700">
-              Owner / Manager Name *
-            </label>
-            <input
-              name="ownerName"
-              value={form.ownerName}
-              onChange={handleChange}
-              placeholder="Enter owner's name"
-              className="w-full border rounded-lg p-2 mt-1"
-              required
-            />
-          </div>
-          <div>
-            <label className="font-semibold text-gray-700">
-              Contact Number *
-            </label>
-            <input
-              name="contact"
-              value={form.contact}
-              onChange={handleChange}
-              placeholder="Enter contact number"
-              className="w-full border rounded-lg p-2 mt-1"
-              required
-            />
+    <div className="relative">
+      {/* 🌀 Loading Overlay */}
+      {uploading && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center gap-3">
+            <Loader2 className="animate-spin text-blue-600 w-10 h-10" />
+            <p className="font-semibold text-gray-700">
+              Submitting Report...
+            </p>
+            <div className="w-48 bg-gray-200 rounded-full h-2 mt-2 overflow-hidden">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+            <span className="text-sm text-gray-500">
+              {uploadProgress}% completed
+            </span>
           </div>
         </div>
+      )}
 
-        {/* Address */}
-        <div>
-          <label className="font-semibold text-gray-700">Hotel Address *</label>
-          <textarea
-            name="address"
-            value={form.address}
-            onChange={handleChange}
-            placeholder="Enter hotel address"
-            className="w-full border rounded-lg p-2 mt-1"
-            required
-          />
-        </div>
+      {/* 🧾 Form Card */}
+      <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 max-w-3xl mx-auto mt-6">
+        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <Building2 className="text-blue-600" /> Hotel Visit Report
+        </h2>
 
-        {/* Visit Date + Camera */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <form className="space-y-3" onSubmit={handleSubmit}>
+          {/* Hotel Name */}
           <div>
             <label className="font-semibold text-gray-700">
-              Visited Date *
+              Hotel / Restaurant Name *
             </label>
             <input
-              type="date"
-              name="visitedDate"
-              value={form.visitedDate}
+              name="hotelName"
+              value={form.hotelName}
               onChange={handleChange}
-              className="w-full border rounded-lg p-2 mt-1"
+              placeholder="Enter hotel or restaurant name"
+              className="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500"
               required
             />
           </div>
 
+          {/* Owner & Contact */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold text-gray-700">
+                Owner / Manager Name *
+              </label>
+              <input
+                name="ownerName"
+                value={form.ownerName}
+                onChange={handleChange}
+                placeholder="Enter owner's name"
+                className="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="font-semibold text-gray-700">
+                Contact Number *
+              </label>
+              <input
+                name="contact"
+                value={form.contact}
+                onChange={handleChange}
+                placeholder="Enter contact number"
+                className="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Address */}
           <div>
             <label className="font-semibold text-gray-700">
-              Capture Photo & Location *
+              Hotel Address *
             </label>
-            <input
-              id="photo-input"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleCapture}
-              className="hidden"
+            <textarea
+              name="address"
+              value={form.address}
+              onChange={handleChange}
+              placeholder="Enter hotel address"
+              className="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500"
+              required
             />
-            <label
-              htmlFor="photo-input"
-              className="cursor-pointer bg-blue-600 text-white px-3 py-2 mt-1 rounded-lg inline-flex items-center gap-2 hover:bg-blue-700"
+          </div>
+
+          {/* Visit Date + Capture */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold text-gray-700">
+                Visited Date *
+              </label>
+              <input
+                type="date"
+                name="visitedDate"
+                value={form.visitedDate}
+                onChange={handleChange}
+                className="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="font-semibold text-gray-700">
+                Capture Photo & Location *
+              </label>
+              <input
+                id="photo-input"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleCapture}
+                className="hidden"
+              />
+              <label
+                htmlFor="photo-input"
+                className="cursor-pointer bg-blue-600 text-white px-4 py-2 mt-1 rounded-lg inline-flex items-center gap-2 hover:bg-blue-700 transition"
+              >
+                <Camera size={18} /> Take Photo
+              </label>
+            </div>
+          </div>
+
+          {location && (
+            <div className="text-sm text-gray-600 mt-1 p-2 border rounded-lg">
+              📍 Lat: {location.latitude.toFixed(5)}, Lng:{" "}
+              {location.longitude.toFixed(5)}
+            </div>
+          )}
+
+          {photoPreview && (
+            <div className="w-32 h-24 rounded-md overflow-hidden border mt-2">
+              <img
+                src={photoPreview}
+                alt="preview"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+
+          {/* What Said */}
+          <div>
+            <label className="font-semibold text-gray-700">
+              What Customer Said *
+            </label>
+            <textarea
+              name="whatSaid"
+              value={form.whatSaid}
+              onChange={handleChange}
+              placeholder="Notes from customer conversation"
+              className="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          {/* Interest + Next Meet */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold text-gray-700">
+                Customer Interest *
+              </label>
+              <select
+                name="interest"
+                value={form.interest}
+                onChange={handleChange}
+                className="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option>Interested</option>
+                <option>Maybe Later</option>
+                <option>Not Interested</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="font-semibold text-gray-700">
+                Next Meeting Date
+              </label>
+              <input
+                type="date"
+                name="nextMeet"
+                value={form.nextMeet}
+                onChange={handleChange}
+                className="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Remarks */}
+          <div>
+            <label className="font-semibold text-gray-700">
+              Additional Remarks
+            </label>
+            <textarea
+              name="remarks"
+              value={form.remarks}
+              onChange={handleChange}
+              placeholder="Any additional comments or details"
+              className="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-2 mt-4">
+            <button
+              type="submit"
+              disabled={uploading}
+              className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-semibold transition"
             >
-              <Camera /> Take Photo
-            </label>
-          </div>
-        </div>
-
-        {/* Location Info */}
-        {location && (
-          <div className="text-sm text-gray-600 mt-1 p-2 border rounded-lg">
-            📍 Lat: {location.latitude.toFixed(5)}, Lng:{" "}
-            {location.longitude.toFixed(5)}
-          </div>
-        )}
-
-        {/* Preview */}
-        {photoPreview && (
-          <div className="w-32 h-24 rounded-md overflow-hidden border mt-2">
-            <img
-              src={photoPreview}
-              alt="preview"
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
-
-        {/* Progress Bar */}
-        {uploading && uploadProgress > 0 && (
-          <div className="w-full bg-gray-200 rounded-full h-3 mt-2">
-            <div
-              className="bg-green-600 h-3 rounded-full"
-              style={{ width: `${uploadProgress}%` }}
-            />
-          </div>
-        )}
-
-        {/* What Said */}
-        <div>
-          <label className="font-semibold text-gray-700">
-            What Customer Said *
-          </label>
-          <textarea
-            name="whatSaid"
-            value={form.whatSaid}
-            onChange={handleChange}
-            placeholder="Notes from customer conversation"
-            className="w-full border rounded-lg p-2 mt-1"
-            required
-          />
-        </div>
-
-        {/* Interest + Next Meet */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="font-semibold text-gray-700">
-              Customer Interest *
-            </label>
-            <select
-              name="interest"
-              value={form.interest}
-              onChange={handleChange}
-              className="w-full border rounded-lg p-2 mt-1"
-              required
+              {uploading ? "Submitting..." : "Submit Report"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setForm(initial);
+                if (photoPreview) URL.revokeObjectURL(photoPreview);
+                setPhotoFile(null);
+                setPhotoPreview(null);
+                setLocation(null);
+              }}
+              className="px-5 py-2 rounded-lg border hover:bg-gray-100 transition"
             >
-              <option>Interested</option>
-              <option>Maybe Later</option>
-              <option>Not Interested</option>
-            </select>
+              Reset
+            </button>
           </div>
-
-          <div>
-            <label className="font-semibold text-gray-700">
-              Next Meeting Date
-            </label>
-            <input
-              type="date"
-              name="nextMeet"
-              value={form.nextMeet}
-              onChange={handleChange}
-              className="w-full border rounded-lg p-2 mt-1"
-            />
-          </div>
-        </div>
-
-        {/* Remarks */}
-        <div>
-          <label className="font-semibold text-gray-700">
-            Additional Remarks
-          </label>
-          <textarea
-            name="remarks"
-            value={form.remarks}
-            onChange={handleChange}
-            placeholder="Any additional comments or details"
-            className="w-full border rounded-lg p-2 mt-1"
-          />
-        </div>
-
-        {/* Buttons */}
-        <div className="flex gap-2 mt-4">
-          <button
-            type="submit"
-            disabled={uploading}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold"
-          >
-            {uploading ? "Submitting..." : "Submit Report"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setForm(initial);
-              setPhotoFile(null);
-              // Clean up on reset
-              if (photoPreview) URL.revokeObjectURL(photoPreview); 
-              setPhotoPreview(null);
-              setLocation(null);
-            }}
-            className="px-4 py-2 rounded-lg border"
-          >
-            Reset
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
 
 
+
+/* -------------------- Deal Confirm Panel -------------------- */
 
 /* -------------------- Deal Confirm Panel -------------------- */
 
@@ -519,45 +518,35 @@ function DealConfirmPanel({ user }) {
   const [paymentPreview, setPaymentPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [commission, setCommission] = useState(0);
-  
-  // NEW: Memory cleanup for payment preview
+  const [calculatedReward, setCalculatedReward] = useState(0);
+
   useEffect(() => {
     return () => {
-      if (paymentPreview) {
-        URL.revokeObjectURL(paymentPreview);
-      }
+      if (paymentPreview) URL.revokeObjectURL(paymentPreview);
     };
   }, [paymentPreview]);
 
-  // 🔹 Handle Form Change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((s) => ({ ...s, [name]: value }));
-
-    // 🔹 Auto set commission based on deal amount
     if (name === "dealAmount") {
-      if (value === "199") setCommission(39);
-      else if (value === "399") setCommission(99);
-      else if (value === "799") setCommission(199);
-      else setCommission(0);
+      let reward = 0;
+      if (value === "199") reward = 39;
+      else if (value === "399") reward = 99;
+      else if (value === "799") reward = 199;
+      setCalculatedReward(reward);
     }
   };
 
-  // 🔹 Handle File Selection
   const handleFileCapture = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Revoke the previous URL before creating a new one
-      if (paymentPreview) {
-        URL.revokeObjectURL(paymentPreview);
-      }
+      if (paymentPreview) URL.revokeObjectURL(paymentPreview);
       setPaymentFile(file);
       setPaymentPreview(URL.createObjectURL(file));
     }
   };
 
-  // 🔹 Upload Image to Firebase Storage
   const uploadFileToStorage = (file, pathPrefix = "deals/payment") =>
     new Promise((resolve, reject) => {
       if (!file) return resolve(null);
@@ -575,25 +564,24 @@ function DealConfirmPanel({ user }) {
       );
     });
 
-  // 🔹 Submit Form
   const handleSubmit = async (e) => {
     e.preventDefault();
     const requiredFields = ["hotelName", "ownerName", "contact", "dealAmount"];
     for (let field of requiredFields)
       if (!form[field]) return alert(`Please fill ${field}`);
     if (!paymentFile) return alert("Payment proof is required");
+    if (calculatedReward <= 0)
+      return alert("Please select a valid deal amount.");
 
     setUploading(true);
     try {
       const paymentURL = await uploadFileToStorage(paymentFile);
-      const calculatedReward = commission;
-
       await addDoc(collection(db, "workDetails"), {
         staffId: user.uid,
         staffEmail: user.email || null,
         type: "deal",
         ...form,
-        commission: calculatedReward,
+        calculatedReward,
         media: { paymentURL },
         rewardStatus: "pending",
         createdAt: serverTimestamp(),
@@ -601,10 +589,9 @@ function DealConfirmPanel({ user }) {
 
       setForm(initial);
       setPaymentFile(null);
-      // Clean up after successful submission
       if (paymentPreview) URL.revokeObjectURL(paymentPreview);
       setPaymentPreview(null);
-      setCommission(0);
+      setCalculatedReward(0);
       alert("✅ Deal submitted successfully (Pending approval).");
     } catch (err) {
       console.error(err);
@@ -615,149 +602,181 @@ function DealConfirmPanel({ user }) {
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 max-w-3xl mx-auto">
-      <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-        <CheckCircle2 /> Deal Confirmation Form
-      </h2>
-
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        {/* Hotel Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Hotel / Restaurant Name *
-          </label>
-          <input
-            name="hotelName"
-            value={form.hotelName}
-            onChange={handleChange}
-            placeholder="e.g. The Royal Inn"
-            className="w-full border rounded-lg p-2"
-            required
-          />
-        </div>
-
-        {/* Owner and Contact */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Owner / Manager Name *
-            </label>
-            <input
-              name="ownerName"
-              value={form.ownerName}
-              onChange={handleChange}
-              placeholder="e.g. Mr. Sharma"
-              className="w-full border rounded-lg p-2"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contact Number *
-            </label>
-            <input
-              name="contact"
-              value={form.contact}
-              onChange={handleChange}
-              placeholder="e.g. 9876543210"
-              className="w-full border rounded-lg p-2"
-              required
-            />
-          </div>
-        </div>
-
-        {/* Deal Amount Dropdown */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Deal Amount (₹) *
-          </label>
-          <select
-            name="dealAmount"
-            value={form.dealAmount}
-            onChange={handleChange}
-            className="w-full border rounded-lg p-2"
-            required
-          >
-            <option value="">Select deal amount</option>
-            <option value="199">₹199</option>
-            <option value="399">₹399</option>
-            <option value="799">₹799</option>
-          </select>
-        </div>
-
-        {/* Auto-calculated commission */}
-        {commission > 0 && (
-          <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 font-medium">
-            You will earn ₹{commission} commission for this deal (after owner approval).
-          </div>
-        )}
-
-        {/* Upload Proof */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Upload Payment Proof *
-          </label>
-          <label className="cursor-pointer bg-white border p-2 rounded-lg flex items-center gap-2">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileCapture}
-              className="hidden"
-              required
-            />
-            <UploadCloud /> Select Image
-          </label>
-          {paymentPreview && (
-            <div className="w-28 h-20 rounded-md overflow-hidden border mt-2">
-              <img
-                src={paymentPreview}
-                alt="preview"
-                className="w-full h-full object-cover"
+    <>
+      {/* 🔹 Full-Screen Loading Overlay */}
+      {uploading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center">
+            <Loader2 className="animate-spin text-blue-600 w-12 h-12 mb-4" />
+            <p className="text-blue-700 font-semibold text-lg mb-2">
+              Uploading your deal...
+            </p>
+            <div className="w-64 bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-blue-600 h-2 transition-all duration-300"
+                style={{ width: `${uploadProgress}%` }}
               />
             </div>
+            <p className="text-sm text-gray-600 mt-2">{uploadProgress}%</p>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-gradient-to-br from-blue-50 via-white to-blue-100 p-8 rounded-2xl shadow-2xl border border-blue-100 max-w-2xl mx-auto transition-all duration-300 hover:shadow-blue-200/70">
+        <div className="text-center mb-8">
+          <h2 className="text-xl sm:text-3xl font-extrabold text-blue-800 flex items-center justify-center gap-2">
+            <CheckCircle2 className="text-blue-600 w-7 h-7" />
+            Deal Confirmation
+          </h2>
+          <p className="text-gray-600 mt-2 text-sm">
+            Complete the form below to submit a confirmed deal.
+          </p>
+        </div>
+
+        <form className="space-y-6" onSubmit={handleSubmit}>
+          {/* Hotel Name */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Hotel / Restaurant Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              name="hotelName"
+              value={form.hotelName}
+              onChange={handleChange}
+              placeholder="e.g. The Royal Inn"
+              className="w-full border border-gray-300 rounded-xl p-3.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition duration-200 bg-white shadow-sm"
+              required
+            />
+          </div>
+
+          {/* Owner and Contact */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Owner / Manager Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                name="ownerName"
+                value={form.ownerName}
+                onChange={handleChange}
+                placeholder="e.g. Mr. Sharma"
+                className="w-full border border-gray-300 rounded-xl p-3.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white shadow-sm"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Contact Number <span className="text-red-500">*</span>
+              </label>
+              <input
+                name="contact"
+                value={form.contact}
+                onChange={handleChange}
+                placeholder="e.g. 9876543210"
+                className="w-full border border-gray-300 rounded-xl p-3.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white shadow-sm"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Deal Amount */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Deal Amount (₹) <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="dealAmount"
+              value={form.dealAmount}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-xl p-3.5 bg-white appearance-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 shadow-sm"
+              required
+            >
+              <option value="">Select deal amount</option>
+              <option value="199">₹199</option>
+              <option value="399">₹399</option>
+              <option value="799">₹799</option>
+            </select>
+          </div>
+
+          {/* Reward */}
+          {calculatedReward > 0 && (
+            <div className="p-4 rounded-xl bg-green-50 border border-green-300 text-green-800 font-semibold text-sm flex items-center gap-2 shadow-sm">
+              <Wallet className="w-5 h-5 text-green-600" />
+              Commission: ₹{calculatedReward} (Pending approval)
+            </div>
           )}
-        </div>
 
-        {/* Remarks */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Additional Remarks
-          </label>
-          <textarea
-            name="remarks"
-            value={form.remarks}
-            onChange={handleChange}
-            placeholder="Write any notes or comments here..."
-            className="w-full border rounded-lg p-2"
-          />
-        </div>
+          {/* Upload Proof */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Upload Payment Proof <span className="text-red-500">*</span>
+            </label>
+            <label className="cursor-pointer bg-blue-100 hover:bg-blue-200 border border-blue-300 text-blue-700 font-medium p-3 rounded-xl flex items-center justify-center gap-2 transition duration-200 shadow-sm">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileCapture}
+                className="hidden"
+                required
+              />
+              <UploadCloud className="w-5 h-5" />
+              {paymentFile
+                ? `File Selected: ${paymentFile.name.substring(0, 15)}...`
+                : "Select Payment Image"}
+            </label>
 
-        {/* Submit Buttons */}
-        <div className="flex gap-2 mt-4">
-          <button
-            type="submit"
-            disabled={uploading}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold"
-          >
-            {uploading ? "Submitting..." : "Submit Deal"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setForm(initial);
-              setPaymentFile(null);
-              // Clean up on reset
-              if (paymentPreview) URL.revokeObjectURL(paymentPreview);
-              setPaymentPreview(null);
-              setCommission(0);
-            }}
-            className="px-4 py-2 rounded-lg border"
-          >
-            Reset
-          </button>
-        </div>
-      </form>
-    </div>
+            {paymentPreview && (
+              <div className="mt-4 border border-gray-200 rounded-xl p-2 inline-block bg-white shadow-sm">
+                <img
+                  src={paymentPreview}
+                  alt="Payment Proof"
+                  className="w-36 h-28 object-cover rounded-lg"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Remarks */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Additional Remarks
+            </label>
+            <textarea
+              name="remarks"
+              value={form.remarks}
+              onChange={handleChange}
+              placeholder="Write any notes or comments here..."
+              className="w-full border border-gray-300 rounded-xl p-3.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white shadow-sm"
+              rows="3"
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-4 pt-4">
+            <button
+              type="submit"
+              disabled={uploading}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3.5 rounded-xl font-bold text-lg shadow-md shadow-blue-500/30 transition duration-300 disabled:bg-gray-400 disabled:shadow-none"
+            >
+              {uploading ? "Submitting..." : "Submit"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setForm(initial);
+                setPaymentFile(null);
+                if (paymentPreview) URL.revokeObjectURL(paymentPreview);
+                setPaymentPreview(null);
+                setCalculatedReward(0);
+              }}
+              className="px-5 py-3.5 rounded-xl border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 shadow-sm transition duration-200"
+            >
+              Reset
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
   );
 }
 
@@ -769,16 +788,10 @@ function EarningsOverview({ user }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // 🧠 1️⃣ Only run if user is logged in
     if (!user) return;
 
-    // 🧠 2️⃣ Create a Firestore query for the logged-in staff
-    const q = query(
-      collection(db, "workDetails"),
-      where("staffId", "==", user.uid)
-    );
+    const q = query(collection(db, "workDetails"), where("staffId", "==", user.uid));
 
-    // 🧠 3️⃣ Real-time snapshot listener
     const unsub = onSnapshot(
       q,
       (snapshot) => {
@@ -796,49 +809,64 @@ function EarningsOverview({ user }) {
       }
     );
 
-    // 🧠 4️⃣ Clean up listener when component unmounts
     return () => unsub();
   }, [user]);
-  
-  console.log("Earnings reports:", reports);
 
-  if (loading) return <p className="text-center text-gray-500">Loading...</p>;
-  if (error)
+  if (loading)
     return (
-      <p className="text-center text-red-500">
-        Error fetching data: {error}
-      </p>
+      <div className="flex justify-center items-center h-40 text-gray-500">
+        <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading reports...
+      </div>
+    );
+
+  if (error)
+    return <p className="text-center text-red-500">Error: {error}</p>;
+
+  if (reports.length === 0)
+    return (
+      <div className="text-center text-gray-500 py-10">
+        No work reports found for your account.
+      </div>
     );
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Earnings Overview</h2>
+      <h2 className="text-xl font-bold mb-4 text-gray-800">Earnings Overview</h2>
 
-      {reports.length === 0 ? (
-        <p>No work reports found for your account.</p>
-      ) : (
-        <ul className="space-y-3">
-          {reports.map((report) => (
-            <li
-              key={report.id}
-              className="border rounded-lg p-3 shadow-sm bg-white"
-            >
-              <p>
-                <strong>Project:</strong> {report.hotelName || "N/A"}
-              </p>
-               <p>
-                <strong>Money:</strong> {report.rewardStatus || "N/A"}
-              </p>
-               <p>
-                <strong>Type :</strong> {report.type || "N/A"}
-              </p>
-              <p>
-                <strong>Date:</strong>{report.visitedDate || "N/A"}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* Responsive Table */}
+      <div className="overflow-x-auto border rounded-lg shadow-sm">
+        <table className="min-w-full text-sm text-gray-700 border-collapse">
+          <thead className="bg-green-600 text-white">
+            <tr>
+              <th className="px-4 py-3 text-left font-semibold">Hotel / Project</th>
+              <th className="px-4 py-3 text-left font-semibold">Reward Status</th>
+              <th className="px-4 py-3 text-left font-semibold">Type</th>
+              <th className="px-4 py-3 text-left font-semibold">Visited Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {reports.map((report, i) => (
+              <tr
+                key={report.id}
+                className={`border-t hover:bg-green-50 transition ${
+                  i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                }`}
+              >
+                <td className="px-4 py-3 font-medium">{report.hotelName || "N/A"}</td>
+                <td className="px-4 py-3">{report.rewardStatus || "N/A"}</td>
+                <td className="px-4 py-3">{report.type || "N/A"}</td>
+                <td className="px-4 py-3">
+                  {report.visitedDate
+                    ? new Date(report.visitedDate).toLocaleDateString("en-IN")
+                    : "N/A"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
+
+

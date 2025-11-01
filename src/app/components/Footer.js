@@ -42,9 +42,10 @@ export default function Footer() {
             <div>
                 <h3 className="text-xl font-bold mb-4 text-indigo-400">Quick Links</h3>
                 <ul className="space-y-2 text-gray-400">
-                    <li><a href="#features" className="hover:text-white transition">Features</a></li>
-                    <li><a href="#pricing" className="hover:text-white transition">Pricing</a></li>
-                    <li><a href="#benefits" className="hover:text-white transition">Benefits</a></li>
+                   <li><a href="/privacy-policy" className="hover:text-white transition">Privacy Policy</a></li>
+                    <li><a href="/refund-policy" className="hover:text-white transition">Refund Policy</a></li>
+                    <li><a href="/terms-and-conditions" className="hover:text-white transition">Terms and Conditions</a></li>
+                    <li><a href="/contact" className="hover:text-white transition">Contact</a></li>
                 </ul>
             </div>
             
