@@ -1,24 +1,28 @@
 import Razorpay from "razorpay";
 
 export async function POST(req) {
-  const { userId } = await req.json();
-
-  const razorpay = new Razorpay({
-    key_id: "rzp_test_RXqiuDDEpmIeNG",
-    key_secret: "vPMy5Kmnsps6HIqVUfu3GsFP",
-  });
-
   try {
-    // Use a pre-created plan_id for ₹99/month
-    const subscription = await razorpay.subscriptions.create({
-      plan_id: "plan_XXXX",
-      customer_notify: 1,
-      start_at: Math.floor(Date.now() / 1000),
-      notes: { userId },
+    const razorpay = new Razorpay({
+      key_id: "rzp_test_RbMJyZOXsNLyXH",
+      key_secret: "3fmNrhjKmkVrX0IN1hgHBS2z",
     });
 
-    return new Response(JSON.stringify(subscription), { status: 200 });
+    const subscription = await razorpay.subscriptions.create({
+      plan_id: "plan_RbMZtBbxSZScaq",
+      customer_notify: 1,
+      total_count: 12
+    });
+
+    return new Response(
+      JSON.stringify({ id: subscription.id }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    console.error("Razorpay Error:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 }

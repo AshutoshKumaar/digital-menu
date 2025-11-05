@@ -106,7 +106,7 @@ export default function Registration() {
 
       // 3️⃣ Open Razorpay checkout with subscription id
       const options = {
-        key: "rzp_test_RXqiuDDEpmIeNG",
+        key: "rzp_test_RbMJyZOXsNLyXH",
         subscription_id: subscriptionData.id,
         name: "Digital Menu App",
         description: "Monthly ₹99 subscription",

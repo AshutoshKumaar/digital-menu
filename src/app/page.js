@@ -3,6 +3,8 @@ import { CheckCircle, Phone, Mail, Globe, Settings, DollarSign, Zap, Clock, Tren
 import { useState } from 'react'; 
 import Link from 'next/link';
 import DigitalBharatMenuLogo from "./components/DigitalBharatMenuLogo";
+import Image from "next/image";
+import HeroSlider from "./components/HeroSlider";
 
 
 import { Josefin_Sans } from "next/font/google";
@@ -214,27 +216,8 @@ export default function LandingPage() {
             <Navbar />
 
             {/* 1. Hero Section (Slide 1) */}
-            <section className="relative bg-gradient-to-br from-indigo-800 to-blue-700 text-white py-24 md:py-48 overflow-hidden">
-                 {/* Decorative SVG (Background) */}
-                <SvgQrCode className="absolute top-0 right-0 w-1/2 h-full opacity-10 blur-sm transform translate-x-1/4 -translate-y-1/4" />
-                
-                <div className="max-w-7xl mx-auto text-center px-6 relative z-10">
-                    <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-4 md:mb-6 leading-tight animate-fade-in-down">
-                        Digital QR Menu Solution
-                    </h1>
-                    <p className="text-lg sm:text-xl md:text-2xl mb-8 md:mb-12 font-light tracking-wide animate-fade-in-up">
-                        Modern, Simple & Smart Ordering System — Ditch the Paper, Go Digital.
-                    </p>
-                    <div className="flex justify-center space-x-6">
-                        <a
-                            href="#pricing"
-                            className="bg-yellow-400 text-gray-900 px-8 py-3 sm:px-10 sm:py-4 rounded-full text-lg font-extrabold shadow-2xl shadow-yellow-300/50 hover:bg-yellow-500 transition duration-500 transform hover:scale-105 animate-bounce-slow"
-                        >
-                            Start Your Trial
-                        </a>
-                    </div>
-                </div>
-            </section>
+            <HeroSlider />
+          
 
             {/* 2. Problem & Solution (Slide 2 & 3) */}
             <section className="py-16 sm:py-24 bg-white" id="problem-solution">
