@@ -1,10 +1,11 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   getAuth, 
   RecaptchaVerifier, 
   signInWithPhoneNumber, 
-  linkWithCredential 
+  linkWithCredential,
+  PhoneAuthProvider
 } from "firebase/auth";
 
 // Assuming 'auth' is correctly initialized and exported from your config
@@ -13,6 +14,12 @@ import { auth } from "@/app/firebase/config";
 // Global variable for reCAPTCHA and confirmation result
 let recaptchaVerifier;
 let confirmationResult;
+
+// Define operation modes
+const MODE = {
+    LINK: 'LINK',
+    SIGN_IN: 'SIGN_IN'
+};
 
 export default function PhoneLinkModal({ show, onClose }) {
   const [phone, setPhone] = useState("");
@@ -23,6 +30,16 @@ export default function PhoneLinkModal({ show, onClose }) {
   const [successMessage, setSuccessMessage] = useState(null); 
   const [countdown, setCountdown] = useState(0); 
 
+  // --- Determine Mode (Memoized) ---
+  // If auth.currentUser exists, we are linking (e.g., upgrading Anonymous to Phone).
+  // If auth.currentUser is null, we are signing in (e.g., renewing an expired session).
+  const currentMode = useMemo(() => {
+    if (auth.currentUser) {
+      return MODE.LINK;
+    }
+    return MODE.SIGN_IN;
+  }, [show, auth.currentUser]); 
+
   // --- 1. Lifecycle Management for reCAPTCHA ---
   useEffect(() => {
     if (show && !recaptchaVerifier && auth) {
@@ -30,21 +47,23 @@ export default function PhoneLinkModal({ show, onClose }) {
       setSuccessMessage(null);
       
       try {
-        recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-          size: "invisible",
-          callback: (response) => {
-            console.log("reCAPTCHA solved:", response);
-          },
-          'expired-callback': () => {
-            console.warn("reCAPTCHA expired. Please retry.");
-            if (window.grecaptcha && recaptchaVerifier) {
-                recaptchaVerifier.clear();
-            }
-            setError("Security check expired. Please try again.");
-          }
-        });
-        recaptchaVerifier.render(); 
-        
+        const container = document.getElementById("recaptcha-container");
+        if (container) {
+             recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+                size: "invisible",
+                callback: (response) => {
+                  console.log("reCAPTCHA solved:", response);
+                },
+                'expired-callback': () => {
+                  console.warn("reCAPTCHA expired. Please retry.");
+                  if (window.grecaptcha && recaptchaVerifier) {
+                      recaptchaVerifier.clear();
+                  }
+                  setError("Security check expired. Please try again.");
+                }
+              });
+              recaptchaVerifier.render(); 
+        }
       } catch (err) {
         console.error("reCAPTCHA initialization failed:", err);
         setError("Security check setup failed. Please refresh the page.");
@@ -74,7 +93,7 @@ export default function PhoneLinkModal({ show, onClose }) {
   }, [countdown]);
 
 
-  // --- 3. Function to Send OTP ---
+  // --- 3. Function to Send OTP (Used for both modes) ---
   const sendOtp = async () => {
     setError(null);
     setSuccessMessage(null); 
@@ -88,15 +107,15 @@ export default function PhoneLinkModal({ show, onClose }) {
       return;
     }
     
-    // Ensure Current User exists before starting the linking process
-    if (!auth.currentUser) {
-        setError("User session expired. Please refresh the main page.");
+    // Safety check: Prevent linking if user session drops unexpectedly mid-flow
+    if (currentMode === MODE.LINK && !auth.currentUser) {
+        setError("User session expired unexpectedly during linking attempt. Please refresh or Sign In.");
         return;
     }
     
     setLoading(true);
     try {
-      // Start phone number sign-in/verification process
+      // signInWithPhoneNumber sets up the flow for both linking and signing in
       confirmationResult = await signInWithPhoneNumber(auth, phone, recaptchaVerifier);
       
       setOtpSent(true);
@@ -111,6 +130,7 @@ export default function PhoneLinkModal({ show, onClose }) {
       } else if (err.code === "auth/invalid-phone-number") {
         setError("Invalid phone number format. Use E.164 format (e.g., +91XXXXXXXXXX).");
       } else if (err.code === "auth/too-many-requests") {
+        // This is the error seen in your screenshot (image_53e5bf.png)
         setError("Too many requests. Please try again later.");
       } else {
         setError("Failed to send OTP. See console for details.");
@@ -123,7 +143,7 @@ export default function PhoneLinkModal({ show, onClose }) {
   };
 
 
-  // --- 4. Function to Verify OTP and Link ---
+  // --- 4. Function to Verify OTP (Handles both LINK and SIGN_IN) ---
   const verifyOtp = async () => {
     setError(null);
     setSuccessMessage(null);
@@ -136,47 +156,57 @@ export default function PhoneLinkModal({ show, onClose }) {
     setLoading(true);
     try {
       
-      // 1. Confirm the OTP
-      const result = await confirmationResult.confirm(otp);
-      
-      // CRITICAL FIX 1: Ensure result is valid
-      if (!result) {
-          setError("OTP verification failed. Please try again.");
-          setLoading(false);
-          return;
-      }
-      
-      // 2. Extract the PhoneAuthCredential (after successful confirmation)
-      const phoneCredential = result.credential;
-      
-      // CRITICAL FIX 2: Ensure credential exists before attempting to link
-      if (!phoneCredential) {
-          setError("Verification successful but credential was not received. Please resend OTP.");
-          console.error("Link error: Confirmation succeeded, but result.credential was null/undefined.");
-          setLoading(false);
-          return;
-      }
+      if (currentMode === MODE.SIGN_IN) {
+        // --- SIGN IN MODE: User is currently logged out (auth.currentUser is null) ---
+        
+        await confirmationResult.confirm(otp); 
+        
+        setSuccessMessage("✅ Signed In successfully! Welcome back.");
 
-      // 3. Link the Credential to the Current Logged-in User
-      await linkWithCredential(auth.currentUser, phoneCredential); 
-      
-      setSuccessMessage("✅ Phone linked successfully! Updating session...");
-      
-      // CRITICAL FIX 3: 2-second delay for onAuthStateChanged listener to update global state
-      setTimeout(() => {
-          console.log("Session update delay complete. Closing modal.");
-          onClose();
-      }, 2000); 
+        // Safe delay for the app to process the new Auth state
+        setTimeout(() => {
+            console.log("Sign In complete. Closing modal.");
+            onClose();
+        }, 1000); 
+
+      } else {
+        // --- LINK MODE: User is currently logged in (e.g., Anonymous) ---
+
+        // 1. Manually create the credential using PhoneAuthProvider.credential (Recommended for linking)
+        const phoneCredential = PhoneAuthProvider.credential(
+            confirmationResult.verificationId, 
+            otp
+        );
+        
+        // 2. CRITICAL CHECK: Ensure credential exists 
+        if (!phoneCredential) {
+            setError("Verification successful but credential was not received. Please resend OTP.");
+            console.error("Link error: PhoneCredential creation failed.");
+            setLoading(false);
+            return;
+        }
+
+        // 3. Link the Credential to the Current Logged-in User
+        await linkWithCredential(auth.currentUser, phoneCredential); 
+        
+        setSuccessMessage("✅ Phone linked successfully! Updating session...");
+        
+        // CRITICAL FIX: 2-second delay for onAuthStateChanged listener to update global state
+        setTimeout(() => {
+            console.log("Linking complete. Closing modal.");
+            onClose();
+        }, 2000); 
+      }
       
     } catch (err) {
-      console.error("Link error:", err.code, err.message);
+      console.error("Auth error:", err.code, err.message);
       
       if (err.code === "auth/invalid-verification-code") {
         setError("Invalid OTP. Please try again.");
       } else if (err.code === "auth/credential-already-in-use") {
         setError("This phone number is already linked to another account.");
       } else {
-        setError("Failed to link phone. See console for details.");
+        setError("Authentication failed. See console for details.");
       }
       
     } finally {
@@ -185,11 +215,18 @@ export default function PhoneLinkModal({ show, onClose }) {
   };
 
   if (!show) return null;
+  
+  // Dynamic UI Text based on mode
+  const modalTitle = currentMode === MODE.LINK ? "📱 Link Your Phone" : "🔒 Sign In with Phone";
+  const buttonText = currentMode === MODE.LINK ? "Verify & Link" : "Verify & Sign In";
+  const userStatusMessage = currentMode === MODE.LINK 
+    ? "Linking phone to your current anonymous session." 
+    : "Your session is inactive. Please sign in to restore your profile.";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
       <div className="bg-gray-900 text-white rounded-xl p-6 w-80 shadow-2xl border border-gray-700">
-        <h2 className="text-2xl font-bold mb-4 text-center text-yellow-400">📱 Link Your Phone</h2>
+        <h2 className="text-2xl font-bold mb-4 text-center text-yellow-400">{modalTitle}</h2>
 
         {/* Display Error Message */}
         {error && (
@@ -205,12 +242,10 @@ export default function PhoneLinkModal({ show, onClose }) {
             </div>
         )}
 
-        {/* Check if user exists to prevent linking failure */}
-        {!auth.currentUser && (
-             <div className="bg-yellow-800/40 text-yellow-300 p-2 rounded-lg text-xs mb-3 text-center border border-yellow-700">
-                Waiting for user session to start...
-            </div>
-        )}
+        {/* User Status Message */}
+        <div className="bg-gray-800/50 text-gray-400 p-2 rounded-lg text-xs mb-3 text-center border border-gray-700">
+            {userStatusMessage}
+        </div>
 
         {!otpSent ? (
           <>
@@ -220,11 +255,11 @@ export default function PhoneLinkModal({ show, onClose }) {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="w-full px-3 py-3 mb-4 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition duration-150"
-              disabled={loading || !auth.currentUser}
+              disabled={loading}
             />
             <button
               onClick={sendOtp}
-              disabled={loading || !phone || !auth.currentUser} 
+              disabled={loading || !phone} 
               className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-lg shadow-md transition duration-150 ease-in-out disabled:opacity-50 hover:bg-yellow-400 active:bg-yellow-600"
             >
               {loading ? "Sending OTP..." : "Send OTP"}
@@ -245,7 +280,7 @@ export default function PhoneLinkModal({ show, onClose }) {
               disabled={loading || otp.length < 6}
               className="w-full bg-green-500 text-black font-semibold py-3 rounded-lg shadow-md transition duration-150 ease-in-out disabled:opacity-50 hover:bg-green-400 active:bg-green-600"
             >
-              {loading ? "Verifying..." : "Verify & Link"}
+              {loading ? "Verifying..." : buttonText}
             </button>
 
             {/* Resend OTP Button with Countdown */}
