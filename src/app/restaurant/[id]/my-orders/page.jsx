@@ -1,219 +1,140 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { db } from "@/app/firebase/config";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
+import { getUserId } from "@/app/utils/getUserId";
+import PhoneLinkModal from "@/app/components/PhoneLinkModal"; // ✅ added
+import BottomNav from "@/app/components/FixBottom";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Mooli } from "next/font/google";
-import { useCart } from "@/app/hooks/CartContext";
-import BottomNav from "@/app/components/FixBottom";
-import React from "react";
-const mooli = Mooli({ subsets: ["latin"], weight: ["400"] });
 
-// Helper: fetch userId from localStorage (guest order ke liye)
-const getUserId = () => {
-  return localStorage.getItem("userId");
-};
+const mooli = Mooli({ subsets: ["latin"], weight: ["400"] });
 
 export default function UserOrdersPage({ params }) {
   const { id: ownerId } = React.use(params);
   const router = useRouter();
-  const [userId, setUserId] = useState(null);
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { cart } = useCart();
-  // console.log("UserOrdersPage rendered with userId:", orders);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [userId, setUserId] = useState(null);
 
-  useEffect(() => {
-    const uid = getUserId();
-    if (!uid) {
+  // ✅ Fetch user orders from Firestore
+  const fetchOrders = async (uid) => {
+    try {
+      const ordersRef = collection(db, "orders");
+      const q = query(ordersRef, where("userId", "==", uid), orderBy("timestamp", "desc"));
+      const snap = await getDocs(q);
+      const data = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        date: doc.data().timestamp?.toDate()?.toLocaleDateString() || "",
+      }));
+      setOrders(data);
+    } catch (err) {
+      console.error("❌ Error fetching orders:", err);
+    } finally {
       setLoading(false);
-      return;
-    }
-    setUserId(uid);
-  }, []);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    const ordersQuery = query(
-      collection(db, "orders"),
-      where("userId", "==", userId)
-    );
-
-    const unsubscribe = onSnapshot(
-      ordersQuery,
-      (snapshot) => {
-        const fetchedOrders = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        fetchedOrders.sort((a, b) =>
-          b.createdAt?.toDate ? b.createdAt.toDate() - a.createdAt.toDate() : 0
-        );
-        setOrders(fetchedOrders);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching orders:", error);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [userId]);
-
-  if (loading)
-    return (
-      <div
-        className={`${mooli.className} flex justify-center items-center h-screen bg-black`}
-      >
-        <div className="flex flex-col items-center">
-          <div className="loader border-4 border-yellow-400 border-t-transparent rounded-full w-12 h-12 animate-spin mb-4"></div>
-          <p className="text-yellow-400 text-xl font-bold animate-pulse">
-            Loading your orders...
-          </p>
-        </div>
-      </div>
-    );
-
-  if (!userId)
-    return (
-      <div
-        className={`relative flex flex-col items-center justify-center min-h-screen bg-black px-4 ${mooli.className}`}
-      >
-        <button
-          onClick={() => router.back()}
-          className="absolute top-4 left-4 px-3 py-2 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-600 transition-colors shadow-lg"
-        >
-          ← Back
-        </button>
-        <p className="text-yellow-400 text-base sm:text-lg md:text-xl font-bold text-center max-w-md leading-relaxed">
-          User not found. Please login or set your userId.
-        </p>
-      </div>
-    );
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "pending":
-        return "text-yellow-400";
-      case "confirmed":
-        return "text-green-400";
-      case "canceled":
-        return "text-red-400";
-      default:
-        return "text-white";
     }
   };
 
+  // ✅ Check login status
+  useEffect(() => {
+    async function init() {
+      setLoading(true);
+      const userResult = await getUserId();
+
+      if (!userResult || userResult.isAnonymous) {
+        // Not logged in → show OTP modal
+        setShowPhoneModal(true);
+        setLoading(false);
+        return;
+      }
+
+      setUserId(userResult.uid);
+      fetchOrders(userResult.uid);
+    }
+    init();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className={`min-h-screen bg-gray-900 text-yellow-400 flex items-center justify-center ${mooli.className}`}>
+        Loading Orders...
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={`p-4 max-w-full min-h-screen bg-black font-mooli text-yellow-400 relative ${mooli.className}`}
-    >
-      {/* Back Button */}
-      <button
-        onClick={() => router.back()}
-        className="absolute top-4 left-4 px-3 py-2 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-600 transition-colors shadow-lg"
-      >
-        ← Back
-      </button>
+    <div className={`min-h-screen bg-gray-900 text-white ${mooli.className}`}>
+      {/* ✅ Show login modal if not logged in */}
+      <PhoneLinkModal
+        show={showPhoneModal}
+        onClose={() => {
+          setShowPhoneModal(false);
+          
+        }}
+      />
 
-      <h1 className="text-3xl font-bold my-10 text-center pt-3">My Orders</h1>
+      {/* HEADER */}
+      <header className="sticky top-0 bg-gray-900 border-b border-gray-800 py-4 px-6 z-10">
+        <h1 className="text-3xl font-bold text-yellow-400">My Orders</h1>
+      </header>
 
-      {orders.length === 0 ? (
-        <p className="text-center text-lg mt-10">No orders yet.</p>
-      ) : (
-        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {orders.map((order, idx) => (
-            <div
-              key={order.id || idx}
-              className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-yellow-400 rounded-2xl p-5 shadow-xl hover:shadow-yellow-500/30 hover:scale-105 transform transition-all duration-300 flex flex-col justify-between"
+      {/* MAIN CONTENT */}
+      <main className="p-6 space-y-6">
+        {orders.length === 0 ? (
+          <div className="text-center mt-20">
+            <Image
+              src="/empty-order.png"
+              alt="No Orders"
+              width={120}
+              height={120}
+              className="mx-auto mb-4 opacity-70"
+            />
+            <h2 className="text-xl text-gray-300 mb-2">No Orders Yet</h2>
+            <p className="text-gray-500">Place your first order and it will appear here after login.</p>
+            <button
+              onClick={() => router.push(`/restaurant/${ownerId}`)}
+              className="mt-6 bg-yellow-500 text-gray-900 px-5 py-2 rounded-full font-semibold hover:bg-yellow-400 transition"
             >
-              {/* Order Info */}
-              <div className="mb-3">
-                <p className="font-semibold mb-1 text-sm sm:text-base">
-                  <span className="text-yellow-500">📅 Order Date:</span>{" "}
-                  {order.createdAt?.toDate
-                    ? order.createdAt.toDate().toLocaleString()
-                    : "N/A"}
-                </p>
-                <p className="text-sm sm:text-base">
-                  <span className="text-yellow-500">🛒 Order Type:</span>{" "}
-                  {order.orderType || "N/A"}
-                </p>
+              Browse Menu
+            </button>
+          </div>
+        ) : (
+          orders.map((order) => (
+            <div
+              key={order.id}
+              className="bg-gray-800 rounded-2xl p-4 shadow-lg hover:ring-2 hover:ring-yellow-400/40 transition"
+            >
+              <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-3">
+                <p className="text-gray-400 text-sm">Order ID: {order.id.slice(0, 8)}</p>
+                <span className="text-yellow-400 text-sm">{order.date}</span>
               </div>
 
-              {/* Inside Order */}
-              {order.orderType === "inside" && (
-                <p className="text-sm sm:text-base">
-                  <span className="text-yellow-500">📍 Table Number:</span>{" "}
-                  {order.tableNumber || "N/A"}
-                </p>
-              )}
-
-              {/* Outside Order */}
-              {order.orderType === "outside" && (
-                <div className="space-y-1 text-sm sm:text-base">
-                  <p>
-                    <span className="text-yellow-500">🏠 Address:</span>{" "}
-                    {order.address || "N/A"}
-                  </p>
-                  <p>
-                    <span className="text-yellow-500">📏 Distance:</span>{" "}
-                    {order.distance || "N/A"} km
-                  </p>
-                  <p>
-                    <span className="text-yellow-500">💰 Delivery Charge:</span>{" "}
-                    ₹{order.orderDetails?.deliveryCharge ?? "0"}
-                  </p>
-                </div>
-              )}
-
-              {/* Items */}
-              {/* Items */}
-              <div className="mt-4 bg-gray-800/50 rounded-lg p-3">
-                <p className="font-semibold text-yellow-300 mb-2">🍽 Items:</p>
-                <ul className="list-disc pl-5 space-y-1 text-sm sm:text-base">
-                  {order.items?.length > 0 ? (
-                    order.items.map((item, i) => (
-                      <li key={i}>
-                        {item.name} x {item.quantity} = ₹{item.totalPrice}
-                      </li>
-                    ))
-                  ) : (
-                    <li>No items found</li>
-                  )}
-                </ul>
-                <p className="font-bold mt-3 text-yellow-200 text-sm sm:text-lg">
-                  Total: ₹{order.total ?? order.subtotal ?? "N/A"}
-                </p>
+              <div className="space-y-2">
+                {order.items?.map((item, idx) => (
+                  <div key={idx} className="flex justify-between">
+                    <p className="text-gray-300">{item.name}</p>
+                    <p className="text-gray-400">
+                      {item.qty} × ₹{item.price}
+                    </p>
+                  </div>
+                ))}
               </div>
 
-              {/* Status */}
-              <div className="mt-3">
-                <span className="text-yellow-500">📌 Status:</span>{" "}
-                <span
-                  className={`font-semibold px-2 py-1 rounded ${getStatusColor(
-                    order.status
-                  )}`}
-                >
-                  {order.status || "pending"}
-                </span>
+              <div className="flex justify-between items-center mt-4 border-t border-gray-700 pt-3">
+                <p className="text-gray-300">Total</p>
+                <p className="text-yellow-400 font-bold text-lg">₹{order.total}</p>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </main>
 
-
-      {/* Bottom Navigation */}
-      <BottomNav ownerId={ownerId} cart={cart} />
-
-      <style jsx>{`
-        .loader {
-          border-top-color: transparent;
-        }
-      `}</style>
+      {/* FOOTER NAV */}
+      <BottomNav ownerId={ownerId} cart={[]} />
     </div>
   );
 }

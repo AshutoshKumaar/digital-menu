@@ -114,11 +114,7 @@ export default function CheckoutClient({ ownerId }) {
       // 4. Show success modal
       setModalOpen(true);
 
-      // 5. If anonymous, prompt phone linking after success message
-      if (isAnonymous) {
-        setTimeout(() => setShowPhoneModal(true), 1500);
-      }
-
+     
     } catch (err) {
       console.error("❌ Checkout Error:", err.message);
     } finally {
@@ -324,7 +320,7 @@ export default function CheckoutClient({ ownerId }) {
       />
 
       {/* ✅ Phone Linking Modal */}
-      <PhoneLinkModal show={showPhoneModal} onClose={() => setShowPhoneModal(false)} />
+  
 
       <BottomNav ownerId={ownerId} cart={cart} />
     </div>
