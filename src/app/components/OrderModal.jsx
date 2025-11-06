@@ -40,6 +40,14 @@ export default function CheckoutClient({ ownerId }) {
   const subtotal = cart.reduce((acc, item) => acc + item.totalPrice, 0);
   const router = useRouter();
 
+  // 🧭 Restaurant fixed location (change this as per your shop)
+  const shopLocation = { lat: 25.54544988021849, lng: 87.56932047791145 };
+
+  // 📍 Distance + delivery charge states
+  const [userLocation, setUserLocation] = useState(null);
+  const [distance, setDistance] = useState(0);
+  const [deliveryCharge, setDeliveryCharge] = useState(0);
+
   // ✅ Load anonymous / logged-in user
   useEffect(() => {
     async function loadUser() {
@@ -47,7 +55,6 @@ export default function CheckoutClient({ ownerId }) {
       if (userResult) {
         setUserId(userResult.uid);
         setIsAnonymous(userResult.isAnonymous);
-        console.log("🧩 User loaded:", userResult.uid, "| Anonymous:", userResult.isAnonymous);
       }
     }
     loadUser();
@@ -56,13 +63,61 @@ export default function CheckoutClient({ ownerId }) {
   // ✅ Fetch owner info
   useEffect(() => {
     async function fetchOwner() {
-      // Added check for ownerId to prevent unnecessary fetches
       if (!ownerId) return;
       const docSnap = await getDoc(doc(db, "owners", ownerId));
       if (docSnap.exists()) setOwner(docSnap.data());
     }
     fetchOwner();
   }, [ownerId]);
+
+  // 🧭 Distance Calculation Formula
+  function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) *
+        Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  // 📏 Auto Calculate Delivery Distance & Charge
+  useEffect(() => {
+    if (orderType === "outside") {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setUserLocation({ lat, lng });
+
+          const dist = getDistanceFromLatLonInKm(
+            shopLocation.lat,
+            shopLocation.lng,
+            lat,
+            lng
+          );
+
+          setDistance(dist.toFixed(2));
+
+          let charge = 0;
+          if (dist <= 3) charge = 30;
+          else if (dist <= 6) charge = 60;
+          else if (dist <= 9) charge = 90;
+          else charge = 120;
+
+          setDeliveryCharge(charge);
+        },
+        (err) => console.error("Location error:", err),
+        { enableHighAccuracy: true }
+      );
+    } else {
+      setDistance(0);
+      setDeliveryCharge(0);
+    }
+  }, [orderType]);
 
   if (!owner || !userId) return <LoadingScreen />; // Wait for both owner info AND userId
 
@@ -71,20 +126,24 @@ export default function CheckoutClient({ ownerId }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const total = subtotal + deliveryCharge;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (cart.length === 0) return;
     setLoading(true);
 
     try {
-      if (!userId) throw new Error("User ID missing. Auth state not ready.");
+      if (!userId) throw new Error("User ID missing.");
 
       const newOrder = {
-        userId, // The customer's UID (anonymous or logged-in)
+        userId,
         ownerId,
         items: cart,
         subtotal,
-        total: subtotal,
+        deliveryCharge,
+        total,
+        distance,
         status: "pending",
         orderType,
         tableNumber: orderType === "inside" ? formData.table : null,
@@ -96,39 +155,38 @@ export default function CheckoutClient({ ownerId }) {
         createdAt: serverTimestamp(),
       };
 
-      // 1. Add Order
       const docRef = await addDoc(collection(db, "orders"), newOrder);
-      console.log("✅ Order placed with ID:", docRef.id);
 
-      // 2. Add Reward safely (using the customer's UID fetched from state)
       const rewardData = await addRewardOnOrder(docRef.id);
       setReward({
         rupees: rewardData?.rupees || 0,
         coins: rewardData?.coins || 0,
       });
 
-      // 3. Reset form and cart
-      setFormData({ name: "", number: "", table: "", address: "", city: "", pincode: "" });
+      setFormData({
+        name: "",
+        number: "",
+        table: "",
+        address: "",
+        city: "",
+        pincode: "",
+      });
       clearCart();
-
-      // 4. Show success modal
       setModalOpen(true);
-
-     
     } catch (err) {
       console.error("❌ Checkout Error:", err.message);
     } finally {
       setLoading(false);
     }
   };
-  
-  // (Rest of the component remains the same, including JSX)
+
   return (
     <div
       className={`relative p-6 text-white min-h-screen pb-28 ${mooli.className}`}
       style={{
         backgroundColor: "#1c1c1c",
-        backgroundImage: "radial-gradient(circle at top left, rgba(255,255,255,0.05), transparent 50%)",
+        backgroundImage:
+          "radial-gradient(circle at top left, rgba(255,255,255,0.05), transparent 50%)",
       }}
     >
       {/* Header */}
@@ -150,7 +208,7 @@ export default function CheckoutClient({ ownerId }) {
         <p className="text-sm">Contact: {owner.ownerMobile}</p>
       </div>
 
-      {/* Cart Empty / Filled */}
+      {/* Cart */}
       {cart.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-gray-400 mt-20">
           <ShoppingBag className="w-16 h-16 opacity-50 mb-4" />
@@ -166,7 +224,9 @@ export default function CheckoutClient({ ownerId }) {
             <div className="flex items-center justify-between cursor-pointer">
               <h2 className="text-lg font-bold">Order Details</h2>
               <ShoppingBag
-                className={`w-6 h-6 text-yellow-400 transition-transform ${showDetails ? "rotate-180" : "rotate-0"}`}
+                className={`w-6 h-6 text-yellow-400 transition-transform ${
+                  showDetails ? "rotate-180" : "rotate-0"
+                }`}
               />
             </div>
             <AnimatePresence>
@@ -175,46 +235,79 @@ export default function CheckoutClient({ ownerId }) {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  transition={{ duration: 0.3 }}
                   className="overflow-hidden mt-4"
                 >
                   <div className="divide-y divide-gray-700">
                     {cart.map((item) => (
-                      <div key={item.id} className="py-2 flex justify-between text-sm">
-                        <span className="text-gray-200">{item.name} × {item.quantity}</span>
-                        <span className="text-gray-300">₹{item.totalPrice}</span>
+                      <div
+                        key={item.id}
+                        className="py-2 flex justify-between text-sm"
+                      >
+                        <span className="text-gray-200">
+                          {item.name} × {item.quantity}
+                        </span>
+                        <span className="text-gray-300">
+                          ₹{item.totalPrice}
+                        </span>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 border-t border-gray-700 pt-4 flex justify-between items-center">
-                    <span className="text-lg font-semibold text-white">Total</span>
-                    <span className="text-xl font-bold text-yellow-400">₹{subtotal}</span>
+
+                  <div className="mt-4 border-t border-gray-700 pt-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Subtotal</span>
+                      <span>₹{subtotal}</span>
+                    </div>
+
+                    {orderType === "outside" && (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Distance</span>
+                          <span>{distance} km</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Delivery Charge</span>
+                          <span>₹{deliveryCharge}</span>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="flex justify-between text-lg font-semibold border-t border-gray-700 pt-2">
+                      <span>Total</span>
+                      <span className="text-yellow-400 text-xl font-bold">
+                        ₹{total}
+                      </span>
+                    </div>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          {/* Order Type + Form */}
+          {/* Order Type */}
           <div className="my-6">
-            <label className="block mb-2 font-semibold text-yellow-400 text-lg">Order Type</label>
+            <label className="block mb-2 font-semibold text-yellow-400 text-lg">
+              Order Type
+            </label>
             <div className="relative">
               <select
                 value={orderType}
                 onChange={(e) => setOrderType(e.target.value)}
-                className="w-full appearance-none bg-gradient-to-r from-gray-800 to-gray-900 text-yellow-600 px-2 py-3 rounded-xl border border-gray-600 shadow-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition cursor-pointer"
+                className="w-full bg-gradient-to-r from-gray-800 to-gray-900 text-yellow-600 px-2 py-3 rounded-xl border border-gray-600 shadow-md"
               >
-                <option value="" disabled>🚀 Select Order Type</option>
                 <option value="inside">🍽️ Dine-In (Inside)</option>
                 <option value="outside">🚚 Delivery (Outside)</option>
               </select>
-              <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-yellow-400">▼</span>
             </div>
           </div>
 
           {/* Form */}
           {orderType && (
-            <form onSubmit={handleSubmit} className="space-y-4 bg-gray-800 p-6 rounded-2xl shadow-lg">
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-4 bg-gray-800 p-6 rounded-2xl shadow-lg"
+            >
               <div>
                 <label className="block mb-1">Name:</label>
                 <input
@@ -222,11 +315,12 @@ export default function CheckoutClient({ ownerId }) {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="Enter your full name"
                   required
+                  placeholder="Enter your full name"
                   className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600"
                 />
               </div>
+
               {orderType === "inside" && (
                 <div>
                   <label className="block mb-1">Table Number:</label>
@@ -235,12 +329,13 @@ export default function CheckoutClient({ ownerId }) {
                     name="table"
                     value={formData.table}
                     onChange={handleChange}
-                    placeholder="Enter your table number"
                     required
+                    placeholder="Enter your table number"
                     className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600"
                   />
                 </div>
               )}
+
               {orderType === "outside" && (
                 <>
                   <div>
@@ -250,8 +345,8 @@ export default function CheckoutClient({ ownerId }) {
                       name="number"
                       value={formData.number}
                       onChange={handleChange}
-                      placeholder="Enter your phone number"
                       required
+                      placeholder="Enter your phone number"
                       className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600"
                     />
                   </div>
@@ -262,8 +357,8 @@ export default function CheckoutClient({ ownerId }) {
                       name="address"
                       value={formData.address}
                       onChange={handleChange}
-                      placeholder="Enter your delivery address"
                       required
+                      placeholder="Enter your delivery address"
                       className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600"
                     />
                   </div>
@@ -274,8 +369,8 @@ export default function CheckoutClient({ ownerId }) {
                       name="city"
                       value={formData.city}
                       onChange={handleChange}
-                      placeholder="Enter your city"
                       required
+                      placeholder="Enter your city"
                       className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600"
                     />
                   </div>
@@ -286,8 +381,8 @@ export default function CheckoutClient({ ownerId }) {
                       name="pincode"
                       value={formData.pincode}
                       onChange={handleChange}
-                      placeholder="Enter your area pincode"
                       required
+                      placeholder="Enter your area pincode"
                       className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600"
                     />
                   </div>
@@ -297,9 +392,13 @@ export default function CheckoutClient({ ownerId }) {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full bg-yellow-500 text-black px-6 py-2 rounded-lg font-semibold hover:opacity-60 active:scale-95 flex justify-center items-center space-x-2 ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`w-full bg-yellow-500 text-black px-6 py-2 rounded-lg font-semibold hover:opacity-60 flex justify-center items-center space-x-2 ${
+                  loading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               >
-                {loading && <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></span>}
+                {loading && (
+                  <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></span>
+                )}
                 <span>{loading ? "Placing Order..." : "Place Order"}</span>
               </button>
             </form>
@@ -318,9 +417,6 @@ export default function CheckoutClient({ ownerId }) {
         rupees={reward.rupees}
         coins={reward.coins}
       />
-
-      {/* ✅ Phone Linking Modal */}
-  
 
       <BottomNav ownerId={ownerId} cart={cart} />
     </div>

@@ -22,6 +22,7 @@ export default function UserOrdersPage({ params }) {
 
   // ✅ Fetch user orders from Firestore
   const fetchOrders = async (uid) => {
+    console.log("Fetching orders for user:", uid);
     try {
       const ordersRef = collection(db, "orders");
       const q = query(ordersRef, where("userId", "==", uid), orderBy("timestamp", "desc"));
@@ -38,6 +39,8 @@ export default function UserOrdersPage({ params }) {
       setLoading(false);
     }
   };
+
+  console.log("User Orders Rendered", { userId, orders });
 
   // ✅ Check login status
   useEffect(() => {
