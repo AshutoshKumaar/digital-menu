@@ -1,316 +1,240 @@
+// components/PhoneLinkModal.jsx
 "use client";
-import { useState, useEffect, useMemo } from "react";
-import { 
-  getAuth, 
-  RecaptchaVerifier, 
-  signInWithPhoneNumber, 
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import {
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
   linkWithCredential,
-  PhoneAuthProvider
+  PhoneAuthProvider,
+  onAuthStateChanged,
 } from "firebase/auth";
+import { auth } from "@/app/firebase/config";
 
-// Assuming 'auth' is correctly initialized and exported from your config
-import { auth } from "@/app/firebase/config"; 
-
-// Global variable for reCAPTCHA and confirmation result
-let recaptchaVerifier;
-let confirmationResult;
-
-// Define operation modes
-const MODE = {
-    LINK: 'LINK',
-    SIGN_IN: 'SIGN_IN'
-};
+const MODE = { LINK: "LINK", SIGN_IN: "SIGN_IN" };
 
 export default function PhoneLinkModal({ show, onClose }) {
   const [phone, setPhone] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null); 
-  const [successMessage, setSuccessMessage] = useState(null); 
-  const [countdown, setCountdown] = useState(0); 
+  const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [countdown, setCountdown] = useState(0);
 
-  // --- Determine Mode (Memoized) ---
-  // If auth.currentUser exists, we are linking (e.g., upgrading Anonymous to Phone).
-  // If auth.currentUser is null, we are signing in (e.g., renewing an expired session).
-  const currentMode = useMemo(() => {
-    if (auth.currentUser) {
-      return MODE.LINK;
-    }
-    return MODE.SIGN_IN;
-  }, [show, auth.currentUser]); 
+  const recaptchaRef = useRef(null);
+  const confirmationRef = useRef(null);
 
-  // --- 1. Lifecycle Management for reCAPTCHA ---
+  const currentMode = useMemo(() => (auth.currentUser ? MODE.LINK : MODE.SIGN_IN), [show, auth.currentUser]);
+
+  // Lifecycle: init recaptcha when modal shows
   useEffect(() => {
-    if (show && !recaptchaVerifier && auth) {
-      setError(null);
-      setSuccessMessage(null);
-      
+    if (!show) return;
+
+    setError(null);
+    setSuccessMessage(null);
+
+    // Create recaptcha only once per modal open
+    if (!recaptchaRef.current && typeof window !== "undefined") {
+      const container = document.getElementById("recaptcha-container");
       try {
-        const container = document.getElementById("recaptcha-container");
-        if (container) {
-             recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-                size: "invisible",
-                callback: (response) => {
-                  console.log("reCAPTCHA solved:", response);
-                },
-                'expired-callback': () => {
-                  console.warn("reCAPTCHA expired. Please retry.");
-                  if (window.grecaptcha && recaptchaVerifier) {
-                      recaptchaVerifier.clear();
-                  }
-                  setError("Security check expired. Please try again.");
-                }
-              });
-              recaptchaVerifier.render(); 
-        }
+        recaptchaRef.current = new RecaptchaVerifier(
+          auth,
+          "recaptcha-container",
+          {
+            size: "invisible",
+            callback: (token) => {
+              // solved
+            },
+            "expired-callback": () => {
+              setError("Security check expired. Please try again.");
+              try {
+                recaptchaRef.current?.clear();
+              } catch (e) {}
+              recaptchaRef.current = null;
+            },
+          }
+        );
+        // render returns promise-like but not necessary to await
+        recaptchaRef.current.render?.();
       } catch (err) {
-        console.error("reCAPTCHA initialization failed:", err);
-        setError("Security check setup failed. Please refresh the page.");
+        console.error("reCAPTCHA init failed:", err);
+        setError("Security check could not initialize. Refresh page and try again.");
       }
     }
-    
-    // Cleanup function: Clear the reCAPTCHA instance when the modal closes
-    return () => {
-        if (!show && recaptchaVerifier) {
-            if (window.grecaptcha && recaptchaVerifier.widgetId !== undefined) {
-                try {
-                    window.grecaptcha.reset(recaptchaVerifier.widgetId);
-                } catch (e) {
-                    console.warn("Could not reset reCAPTCHA widget:", e);
-                }
-            }
-        }
-    };
-  }, [show]); 
 
-  // --- 2. Countdown Timer for Resend OTP ---
+    // Cleanup on close/unmount
+    return () => {
+      try {
+        recaptchaRef.current?.clear?.();
+        recaptchaRef.current = null;
+        confirmationRef.current = null;
+      } catch (e) {
+        // ignore
+      }
+    };
+  }, [show]);
+
+  // resend countdown
   useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
+    if (countdown <= 0) return;
+    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
   }, [countdown]);
 
-
-  // --- 3. Function to Send OTP (Used for both modes) ---
   const sendOtp = async () => {
     setError(null);
-    setSuccessMessage(null); 
-    
-    if (!phone.startsWith('+')) {
-      setError("Please include the country code (e.g., +91).");
+    setSuccessMessage(null);
+
+    if (!phone.startsWith("+")) {
+      setError("Please include country code (e.g., +91).");
       return;
     }
-    if (!recaptchaVerifier) {
-      setError("Security check failed to load.");
+    if (!recaptchaRef.current) {
+      setError("Security check not ready. Please refresh and try again.");
       return;
     }
-    
-    // Safety check: Prevent linking if user session drops unexpectedly mid-flow
     if (currentMode === MODE.LINK && !auth.currentUser) {
-        setError("User session expired unexpectedly during linking attempt. Please refresh or Sign In.");
-        return;
+      setError("Your session expired. Please open login flow again.");
+      return;
     }
-    
+
     setLoading(true);
     try {
-      // signInWithPhoneNumber sets up the flow for both linking and signing in
-      confirmationResult = await signInWithPhoneNumber(auth, phone, recaptchaVerifier);
-      
+      confirmationRef.current = await signInWithPhoneNumber(auth, phone, recaptchaRef.current);
       setOtpSent(true);
-      setCountdown(60); 
-      setSuccessMessage("OTP sent successfully! Check your phone."); 
-      
+      setCountdown(60);
+      setSuccessMessage("OTP sent — check your phone.");
     } catch (err) {
-      console.error("OTP error:", err.code, err.message);
-      
-      if (err.code === "auth/invalid-app-credential") { 
-         setError("Configuration Error: Firebase API Key or Authorized Domains are incorrect. Please check settings.");
-      } else if (err.code === "auth/invalid-phone-number") {
-        setError("Invalid phone number format. Use E.164 format (e.g., +91XXXXXXXXXX).");
-      } else if (err.code === "auth/too-many-requests") {
-        // This is the error seen in your screenshot (image_53e5bf.png)
-        setError("Too many requests. Please try again later.");
-      } else {
-        setError("Failed to send OTP. See console for details.");
-      }
-      setOtpSent(false); 
-      
+      console.error("sendOtp error:", err);
+      if (err.code === "auth/invalid-phone-number") setError("Invalid phone number format.");
+      else if (err.code === "auth/too-many-requests") setError("Too many requests. Please try later.");
+      else setError("Unable to send OTP. Check console.");
+      setOtpSent(false);
     } finally {
       setLoading(false);
     }
   };
 
+  const finalizeAuth = async () => {
+    // Wait for onAuthStateChanged to reflect new user
+    return new Promise((resolve) => {
+      const unsub = onAuthStateChanged(auth, (u) => {
+        if (u) {
+          try {
+            localStorage.setItem("userId", u.uid);
+          } catch (e) {}
+          unsub();
+          resolve(u);
+        }
+      });
+      // safety timeout - if no change, resolve with current user after short wait
+      setTimeout(() => {
+        try {
+          localStorage.setItem("userId", auth.currentUser?.uid || "");
+        } catch (e) {}
+        try {
+          unsub();
+        } catch (e) {}
+        resolve(auth.currentUser);
+      }, 3000);
+    });
+  };
 
-  // --- 4. Function to Verify OTP (Handles both LINK and SIGN_IN) ---
   const verifyOtp = async () => {
     setError(null);
     setSuccessMessage(null);
-    
-    if (!confirmationResult) {
-      setError("OTP not sent or session expired. Please resend OTP.");
+
+    if (!confirmationRef.current) {
+      setError("OTP session expired. Please resend OTP.");
       return;
     }
-    
+    if (otp.length < 4) {
+      setError("Enter valid OTP.");
+      return;
+    }
+
     setLoading(true);
     try {
-      
       if (currentMode === MODE.SIGN_IN) {
-        // --- SIGN IN MODE: User is currently logged out (auth.currentUser is null) ---
-        
-        await confirmationResult.confirm(otp); 
-        
-        setSuccessMessage("✅ Signed In successfully! Welcome back.");
+        // Confirm sign-in
+        await confirmationRef.current.confirm(otp);
 
-        // Safe delay for the app to process the new Auth state
+        // Wait for auth state to update and persist uid
+        const user = await finalizeAuth();
+
+        setSuccessMessage("Signed in successfully!");
+        // allow UI to show success, then close
         setTimeout(() => {
-            console.log("Sign In complete. Closing modal.");
-            onClose();
-        }, 1000); 
-
+          onClose?.(user?.uid);
+        }, 800);
       } else {
-        // --- LINK MODE: User is currently logged in (e.g., Anonymous) ---
-
-        // 1. Manually create the credential using PhoneAuthProvider.credential (Recommended for linking)
-        const phoneCredential = PhoneAuthProvider.credential(
-            confirmationResult.verificationId, 
-            otp
-        );
-        
-        // 2. CRITICAL CHECK: Ensure credential exists 
+        // LINK mode: create credential and link to current user
+        const phoneCredential = PhoneAuthProvider.credential(confirmationRef.current.verificationId, otp);
         if (!phoneCredential) {
-            setError("Verification successful but credential was not received. Please resend OTP.");
-            console.error("Link error: PhoneCredential creation failed.");
-            setLoading(false);
-            return;
+          setError("Could not create phone credential. Please resend OTP.");
+          setLoading(false);
+          return;
         }
 
-        // 3. Link the Credential to the Current Logged-in User
-        await linkWithCredential(auth.currentUser, phoneCredential); 
-        
-        setSuccessMessage("✅ Phone linked successfully! Updating session...");
-        
-        // CRITICAL FIX: 2-second delay for onAuthStateChanged listener to update global state
+        await linkWithCredential(auth.currentUser, phoneCredential);
+
+        // After linking, auth.currentUser should now have phoneNumber and persisted UID unchanged
+        const user = await finalizeAuth();
+
+        setSuccessMessage("Phone linked successfully!");
         setTimeout(() => {
-            console.log("Linking complete. Closing modal.");
-            onClose();
-        }, 2000); 
+          onClose?.(user?.uid);
+        }, 1000);
       }
-      
     } catch (err) {
-      console.error("Auth error:", err.code, err.message);
-      
-      if (err.code === "auth/invalid-verification-code") {
-        setError("Invalid OTP. Please try again.");
-      } else if (err.code === "auth/credential-already-in-use") {
-        setError("This phone number is already linked to another account.");
-      } else {
-        setError("Authentication failed. See console for details.");
-      }
-      
+      console.error("verifyOtp error:", err);
+      if (err.code === "auth/invalid-verification-code") setError("Invalid OTP.");
+      else if (err.code === "auth/credential-already-in-use") setError("This phone number is already linked to another account.");
+      else setError("Authentication failed. See console for details.");
     } finally {
-      if (loading) setLoading(false);
+      setLoading(false);
     }
   };
 
   if (!show) return null;
-  
-  // Dynamic UI Text based on mode
-  const modalTitle = currentMode === MODE.LINK ? "📱 Link Your Phone" : "🔒 Sign In with Phone";
+
+  const modalTitle = currentMode === MODE.LINK ? "Link Your Phone" : "Sign In with Phone";
   const buttonText = currentMode === MODE.LINK ? "Verify & Link" : "Verify & Sign In";
-  const userStatusMessage = currentMode === MODE.LINK 
-    ? "Linking phone to your current anonymous session." 
-    : "Your session is inactive. Please sign in to restore your profile.";
+  const userStatusMessage = currentMode === MODE.LINK ? "Linking to your current session..." : "Sign in to enable orders & rewards";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
       <div className="bg-gray-900 text-white rounded-xl p-6 w-80 shadow-2xl border border-gray-700">
         <h2 className="text-2xl font-bold mb-4 text-center text-yellow-400">{modalTitle}</h2>
 
-        {/* Display Error Message */}
-        {error && (
-            <div className="bg-red-900/40 text-red-300 p-3 rounded-lg text-sm mb-3 text-center border border-red-800 animate-pulse">
-                {error}
-            </div>
-        )}
-        
-        {/* Display Success Message */}
-        {successMessage && (
-            <div className="bg-green-800/40 text-green-300 p-3 rounded-lg text-sm mb-3 text-center border border-green-700">
-                {successMessage}
-            </div>
-        )}
+        {error && <div className="bg-red-900/40 text-red-300 p-3 rounded-lg text-sm mb-3 text-center border border-red-800">{error}</div>}
+        {successMessage && <div className="bg-green-800/40 text-green-300 p-3 rounded-lg text-sm mb-3 text-center border border-green-700">{successMessage}</div>}
 
-        {/* User Status Message */}
-        <div className="bg-gray-800/50 text-gray-400 p-2 rounded-lg text-xs mb-3 text-center border border-gray-700">
-            {userStatusMessage}
-        </div>
+        <div className="bg-gray-800/50 text-gray-400 p-2 rounded-lg text-xs mb-3 text-center border border-gray-700">{userStatusMessage}</div>
 
         {!otpSent ? (
           <>
-            <input
-              type="tel"
-              placeholder="+91XXXXXXXXXX (E.164 Format)" 
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-3 py-3 mb-4 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition duration-150"
-              disabled={loading}
-            />
-            <button
-              onClick={sendOtp}
-              disabled={loading || !phone} 
-              className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-lg shadow-md transition duration-150 ease-in-out disabled:opacity-50 hover:bg-yellow-400 active:bg-yellow-600"
-            >
-              {loading ? "Sending OTP..." : "Send OTP"}
+            <input type="tel" placeholder="+91XXXXXXXXXX (E.164)" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={loading} className="w-full px-3 py-3 mb-4 rounded-lg bg-gray-800 border border-gray-700 text-white" />
+            <button onClick={sendOtp} disabled={loading || !phone} className="w-full bg-yellow-500 text-black py-3 rounded-lg font-semibold disabled:opacity-50">
+              {loading ? "Sending..." : "Send OTP"}
             </button>
           </>
         ) : (
           <>
-            <input
-              type="text"
-              placeholder="Enter OTP"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              maxLength={6}
-              className="w-full px-3 py-3 mb-4 rounded-lg bg-gray-800 border border-gray-700 text-white text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-green-500 transition duration-150"
-            />
-            <button
-              onClick={verifyOtp}
-              disabled={loading || otp.length < 6}
-              className="w-full bg-green-500 text-black font-semibold py-3 rounded-lg shadow-md transition duration-150 ease-in-out disabled:opacity-50 hover:bg-green-400 active:bg-green-600"
-            >
+            <input type="text" placeholder="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} className="w-full px-3 py-3 mb-4 rounded-lg bg-gray-800 border border-gray-700 text-white text-center" />
+            <button onClick={verifyOtp} disabled={loading || otp.length < 4} className="w-full bg-green-500 text-black py-3 rounded-lg font-semibold disabled:opacity-50">
               {loading ? "Verifying..." : buttonText}
             </button>
 
-            {/* Resend OTP Button with Countdown */}
             <div className="mt-4 text-center">
-                {countdown > 0 ? (
-                    <span className="text-gray-400 text-sm">
-                        Resend in <span className="font-bold text-green-500">{countdown}s</span>
-                    </span>
-                ) : (
-                    <button 
-                        onClick={sendOtp}
-                        disabled={loading}
-                        className="text-blue-400 text-sm hover:text-blue-300 disabled:opacity-50 font-medium"
-                    >
-                        Resend OTP
-                    </button>
-                )}
+              {countdown > 0 ? <span className="text-gray-400 text-sm">Resend in <b className="text-green-400">{countdown}s</b></span> : <button onClick={sendOtp} disabled={loading} className="text-blue-400 text-sm">Resend OTP</button>}
             </div>
           </>
         )}
-        
-        {/* Recaptcha Container - Must be in the DOM */}
-        <div id="recaptcha-container" style={{ position: 'absolute', top: 0, left: 0, opacity: 0, pointerEvents: 'none' }} className="z-70"></div>
 
-        <button 
-          onClick={onClose} 
-          className="mt-6 text-gray-400 text-sm hover:text-gray-200 w-full text-center border-t border-gray-700 pt-3"
-        >
-          Cancel
-        </button>
+        <div id="recaptcha-container" style={{ position: "absolute", top: 0, left: 0, opacity: 0, pointerEvents: "none" }} />
+
+        <button onClick={() => onClose?.()} className="mt-6 text-gray-400 text-sm hover:text-gray-200 w-full text-center border-t border-gray-700 pt-3">Cancel</button>
       </div>
     </div>
   );

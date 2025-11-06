@@ -1,42 +1,54 @@
 // utils/getUserId.js
-import { getAuth, signInAnonymously } from "firebase/auth";
-import { auth } from "@/app/firebase/config"; // Assuming 'auth' is exported from your config
+import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/app/firebase/config";
 
 /**
- * Checks for an existing user or signs in anonymously to get a stable UID.
- * This UID is used for orders and rewards, even for guests.
- * * @returns {Promise<{uid: string, isAnonymous: boolean} | null>} User data or null if SSR.
+ * Returns { uid, isAnonymous } or null (if SSR).
+ * Guarantees it resolves only after Firebase auth state is settled.
  */
 export async function getUserId() {
-  if (typeof window === "undefined") return null; // Server-Side Rendering (SSR) safety
+  if (typeof window === "undefined") return null;
 
-  const authInstance = getAuth();
-  let user = authInstance.currentUser;
-  console.log("currentUser:", user);
+  return new Promise((resolve) => {
+    // Listen for current auth state once
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      try {
+        // If already signed in, return immediately
+        if (user) {
+          localStorage.setItem("userId", user.uid);
+          unsubscribe();
+          resolve({ uid: user.uid, isAnonymous: user.isAnonymous });
+          return;
+        }
 
-  try {
-    if (!user) {
-      // User is not logged in, perform anonymous sign-in
-      console.log("🧩 User not found. Attempting Anonymous Sign-in...");
-      const result = await signInAnonymously(authInstance);
-      user = result.user;
-    }
-    
-    // Save UID locally for a temporary offline fallback
-    localStorage.setItem("userId", user.uid);
-    
-    return { uid: user.uid, isAnonymous: user.isAnonymous };
+        // If no user, attempt anonymous sign-in so we always have a stable UID
+        const result = await signInAnonymously(auth);
+        const anonUser = result.user;
+        if (anonUser) {
+          localStorage.setItem("userId", anonUser.uid);
+          unsubscribe();
+          resolve({ uid: anonUser.uid, isAnonymous: anonUser.isAnonymous });
+          return;
+        }
 
-  } catch (err) {
-    console.error("❌ Firebase anonymous sign-in error:", err);
-
-    // Fallback: Use local ID (useful if offline or sign-in failed)
-    let localId = localStorage.getItem("userId");
-    if (!localId) {
-      localId = crypto.randomUUID();
-      localStorage.setItem("userId", localId);
-    }
-    // Note: If using localId, Firestore operations will fail unless the user logs in later.
-    return { uid: localId, isAnonymous: true };
-  }
+        // Fallback: localStorage-only id (very rare)
+        let localId = localStorage.getItem("userId");
+        if (!localId) {
+          localId = crypto.randomUUID();
+          localStorage.setItem("userId", localId);
+        }
+        unsubscribe();
+        resolve({ uid: localId, isAnonymous: true });
+      } catch (err) {
+        console.error("getUserId error:", err);
+        let localId = localStorage.getItem("userId");
+        if (!localId) {
+          localId = crypto.randomUUID();
+          localStorage.setItem("userId", localId);
+        }
+        unsubscribe();
+        resolve({ uid: localId, isAnonymous: true });
+      }
+    });
+  });
 }
