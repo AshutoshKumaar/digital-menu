@@ -8,7 +8,7 @@ import {
   onSnapshot,
   doc,
   deleteDoc,
-  updateDoc
+  updateDoc,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Search } from "lucide-react";
@@ -21,7 +21,7 @@ export default function MenuList({ ownerId }) {
     subname: "",
     price: "",
     category: "",
-    imageUrl: ""
+    imageUrl: "",
   });
   const [search, setSearch] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -50,7 +50,7 @@ export default function MenuList({ ownerId }) {
       subname: item.subname || "",
       price: item.price,
       category: item.category || "",
-      imageUrl: item.imageUrl || ""
+      imageUrl: item.imageUrl || "",
     });
   };
 
@@ -61,7 +61,7 @@ export default function MenuList({ ownerId }) {
       subname: editData.subname,
       price: Number(editData.price),
       category: editData.category,
-      imageUrl: editData.imageUrl
+      imageUrl: editData.imageUrl,
     });
     setEditingItem(null);
     alert("Updated ✅");
@@ -82,9 +82,16 @@ export default function MenuList({ ownerId }) {
     setUploading(false);
   };
 
-  const filteredItems = items.filter((it) =>
-    it.name.toLowerCase().includes(search.toLowerCase())
-  );
+  // ✅ Updated search logic to include name, subname, and category
+  const filteredItems = items.filter((it) => {
+    const term = search.trim().toLowerCase();
+    if (!term) return true;
+    return (
+      it.name?.toLowerCase().includes(term) ||
+      it.subname?.toLowerCase().includes(term) ||
+      it.category?.toLowerCase().includes(term)
+    );
+  });
 
   if (!items.length)
     return (
@@ -161,7 +168,9 @@ export default function MenuList({ ownerId }) {
 
             <input
               value={editData.name}
-              onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+              onChange={(e) =>
+                setEditData({ ...editData, name: e.target.value })
+              }
               placeholder="Item Name"
               className="w-full border p-2 rounded mb-2"
             />
@@ -177,7 +186,9 @@ export default function MenuList({ ownerId }) {
 
             <input
               value={editData.price}
-              onChange={(e) => setEditData({ ...editData, price: e.target.value })}
+              onChange={(e) =>
+                setEditData({ ...editData, price: e.target.value })
+              }
               placeholder="Price"
               type="number"
               className="w-full border p-2 rounded mb-2"
@@ -209,7 +220,9 @@ export default function MenuList({ ownerId }) {
               className="w-full border p-2 rounded mb-4"
             />
 
-            {uploading && <p className="text-sm text-gray-500 mb-2">Uploading...</p>}
+            {uploading && (
+              <p className="text-sm text-gray-500 mb-2">Uploading...</p>
+            )}
 
             <div className="flex gap-2">
               <button
