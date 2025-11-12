@@ -180,16 +180,13 @@ export default function OwnerOrdersPage() {
                       <li>No items found</li>
                     )}
                   </ul>
+                  <p className="mt-1 font-bold text-green-600">
+                    Delivery Charge: ₹{deliveryCharge}
+                  </p>
 
                   {/* ✅ Delivery Charge and Final Total Added Here */}
                   <p className="mt-2 font-bold text-green-600">
                     Subtotal: ₹{subtotal}
-                  </p>
-                  <p className="mt-1 font-bold text-green-600">
-                    Delivery Charge: ₹{deliveryCharge}
-                  </p>
-                  <p className="mt-1 font-bold text-green-700">
-                    Final Total: ₹{finalTotal}
                   </p>
                 </div>
 
