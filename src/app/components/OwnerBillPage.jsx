@@ -47,15 +47,25 @@ export default function ThermalBillPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // 🔹 Print function
-  const handlePrint = (orderId) => {
+  // ✅ Download as PDF (print with auto-download)
+  const handleDownload = (orderId) => {
     const printContent = document.getElementById(orderId);
-    const WinPrint = window.open("", "", "width=300,height=600");
+    if (!printContent) {
+      alert("No content found to download!");
+      return;
+    }
 
-    WinPrint.document.write(`
+    const printWindow = window.open("", "_blank", "width=300,height=600");
+    if (!printWindow) {
+      alert("Please allow pop-ups for this site.");
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(`
       <html>
         <head>
-          <title>Receipt #${orderId}</title>
+          <title>Bill #${orderId}</title>
           <style>
             body {
               font-family: monospace;
@@ -66,7 +76,7 @@ export default function ThermalBillPage() {
 
             @media print {
               @page {
-                size: 80mm auto;
+                size: 100mm auto;
                 margin: 0;
               }
               button { display: none; }
@@ -80,16 +90,21 @@ export default function ThermalBillPage() {
             .small { font-size: 11px; }
           </style>
         </head>
-        <body>${printContent.innerHTML}</body>
+        <body>
+          ${printContent.innerHTML}
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(() => window.close(), 800);
+            }
+          </script>
+        </body>
       </html>
     `);
-
-    WinPrint.document.close();
-    WinPrint.focus();
-    WinPrint.print();
-    WinPrint.close();
+    printWindow.document.close();
   };
 
+  // 🔹 Loading state
   if (loading)
     return (
       <div className="flex flex-col items-center text-gray-600 mt-10">
@@ -98,9 +113,13 @@ export default function ThermalBillPage() {
       </div>
     );
 
+  // 🔹 User not logged in
   if (!user)
-    return <p className="text-center mt-5 text-2xl">Please login to see bills.</p>;
+    return (
+      <p className="text-center mt-5 text-2xl">Please login to see bills.</p>
+    );
 
+  // 🔹 Main return
   return (
     <div className="max-w-full sm:max-w-md mx-auto mt-6 px-4">
       <h2 className="text-2xl font-semibold text-center mb-4">
@@ -125,78 +144,93 @@ export default function ThermalBillPage() {
                 <p className="small">Phone: +918210707539</p>
                 <p className="small">web: kfczaika@gmail.com</p>
               </div>
+
               <div className="border-b-2 my-2"></div>
 
               {/* ---------- ORDER DETAILS ---------- */}
               <div className="">
                 <p>Bill No: default</p>
                 <p>Order type: {order.orderType}</p>
+                <p>
+                  Date:{" "}
+                  {new Date(order.createdAt?.seconds * 1000).toLocaleDateString(
+                    "en-GB"
+                  )}
+                </p>
               </div>
+
               <div className="border-b-2 my-2"></div>
 
-              {/* ---------- ITEMS LIST ---------- */}
-              {/* ---------- ITEMS LIST ---------- */}
-{order.items?.length > 0 ? (
-  <div>
-    <div className="flex justify-between font-semibold border-b border-dashed border-black pb-1 mb-1 text-xs">
-      <span style={{ width: "20%", textAlign: "left" }}>QTY</span>
-      <span style={{ width: "60%", textAlign: "center" }}>ITEM</span>
-      <span style={{ width: "20%", textAlign: "right" }}>PRICE</span>
-    </div>
+              {/* ---------- ITEMS TABLE ---------- */}
+              {order.items?.length > 0 ? (
+                <div>
+                  <div className="flex justify-between font-semibold border-b border-dashed border-black pb-1 mb-1 text-xs">
+                    <span style={{ width: "20%", textAlign: "left" }}>QTY</span>
+                    <span style={{ width: "60%", textAlign: "center" }}>
+                      ITEM
+                    </span>
+                    <span style={{ width: "20%", textAlign: "right" }}>
+                      PRICE
+                    </span>
+                  </div>
 
-    {order.items.map((item, idx) => (
-      <div
-        key={idx}
-        className="flex justify-between small border-b border-dashed border-black py-0.5"
-        style={{ fontSize: "12px", marginBottom: "2px" }}
-      >
-        <span style={{ width: "20%", textAlign: "left" }}>{item.quantity}</span>
-        <span style={{ width: "60%", textAlign: "center" }}>{item.name}</span>
-        <span style={{ width: "20%", textAlign: "right" }}>
-          ₹{item.totalPrice?.toFixed(2) ?? 0}
-        </span>
-      </div>
-    ))}
-  </div>
-) : (
-  <p className="small">No items found</p>
-)}
+                  {order.items.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex justify-between small border-b border-dashed border-black py-0.5"
+                      style={{ fontSize: "12px", marginBottom: "2px" }}
+                    >
+                      <span style={{ width: "20%", textAlign: "left" }}>
+                        {item.quantity}
+                      </span>
+                      <span style={{ width: "60%", textAlign: "center" }}>
+                        {item.name}
+                      </span>
+                      <span style={{ width: "20%", textAlign: "right" }}>
+                        ₹{item.totalPrice?.toFixed(2) ?? 0}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="small">No items found</p>
+              )}
 
               <div className="line my-2"></div>
 
               {/* ---------- TOTALS ---------- */}
               <div className="text-right">
                 <span>Subtotal :- </span>
-                <span>&nbsp;₹ &nbsp;{order.subtotal?.toFixed(2) ?? 0}</span>
-              </div>
-             <div className="text-right border-b border-dashed border-black py-0.5 mb-1">
-                  <span>Delivery Charge&nbsp;:-</span>
-                  <span>&nbsp;₹&nbsp;{order.deliveryCharge?.toFixed(2) ?? 0}</span>
-                </div>
-              <div className="text-right">
-                <span>Total&nbsp;:-</span>
-                <span>&nbsp;₹&nbsp;{order.total?.toFixed(2) ?? 0}</span>
+                <span>&nbsp;₹&nbsp;{order.subtotal?.toFixed(2) ?? 0}</span>
               </div>
 
-              
+              <div className="text-right border-b border-dashed border-black py-0.5 mb-1">
+                <span>Delivery Charge :-</span>
+                <span>&nbsp;₹&nbsp;{order.deliveryCharge?.toFixed(2) ?? 0}</span>
+              </div>
+
+              <div className="text-right total-line">
+                <span>Total :-</span>
+                <span>&nbsp;₹&nbsp;{order.total?.toFixed(2) ?? 0}</span>
+              </div>
 
               <div className="border-b border-dashed border-black mb-1 py-0.5"></div>
 
               {/* ---------- FOOTER ---------- */}
               <div className="text-center my-2">
                 <p className="text-sm font-bold">Thank You</p>
-                <p className="text-[10px]">Visit Again !</p>
+                <p className="text-[10px]">Visit Again!</p>
               </div>
 
-              {/* ---------- PRINT BUTTON ---------- */}
-              <div className="mt-2 flex justify-end">
+              
+              {/* <div className="mt-2 flex justify-end">
                 <button
-                  onClick={() => handlePrint(order.id)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
+                  onClick={() => handleDownload(order.id)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
                 >
-                  🖨 Print
+                  🧾 Download Bill
                 </button>
-              </div>
+              </div> */}
             </div>
           ))}
         </div>

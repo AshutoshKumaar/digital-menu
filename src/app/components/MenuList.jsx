@@ -22,6 +22,7 @@ export default function MenuList({ ownerId }) {
     price: "",
     category: "",
     imageUrl: "",
+    available: true,
   });
   const [search, setSearch] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -51,6 +52,7 @@ export default function MenuList({ ownerId }) {
       price: item.price,
       category: item.category || "",
       imageUrl: item.imageUrl || "",
+      available: item.available ?? true,
     });
   };
 
@@ -62,6 +64,7 @@ export default function MenuList({ ownerId }) {
       price: Number(editData.price),
       category: editData.category,
       imageUrl: editData.imageUrl,
+      available: editData.available,
     });
     setEditingItem(null);
     alert("Updated ✅");
@@ -82,7 +85,7 @@ export default function MenuList({ ownerId }) {
     setUploading(false);
   };
 
-  // ✅ Updated search logic to include name, subname, and category
+  // ✅ Search logic (name, subname, category)
   const filteredItems = items.filter((it) => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
@@ -102,7 +105,7 @@ export default function MenuList({ ownerId }) {
 
   return (
     <div>
-      {/* 🔍 Stylish Search Bar */}
+      {/* 🔍 Search Bar */}
       <div className="sticky top-0 z-40 bg-white py-3 mb-6 flex justify-center">
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
@@ -120,7 +123,9 @@ export default function MenuList({ ownerId }) {
         {filteredItems.map((it) => (
           <div
             key={it.id}
-            className="bg-white rounded-2xl shadow-lg overflow-hidden transform hover:scale-[1.02] transition duration-200"
+            className={`bg-white rounded-2xl shadow-lg overflow-hidden transform hover:scale-[1.02] transition duration-200 ${
+              it.available === false ? "opacity-60" : ""
+            }`}
           >
             <img
               src={it.imageUrl}
@@ -132,6 +137,14 @@ export default function MenuList({ ownerId }) {
               <p className="font-semibold text-sm">{it.subname}</p>
               <p className="text-yellow-600 font-medium">₹{it.price}</p>
               <p className="text-sm text-gray-500">{it.category}</p>
+              <p
+                className={`text-sm font-medium mt-1 ${
+                  it.available ? "text-green-600" : "text-red-500"
+                }`}
+              >
+                {it.available ? "Available" : "Not Available"}
+              </p>
+
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => handleEditClick(it)}
@@ -223,6 +236,20 @@ export default function MenuList({ ownerId }) {
             {uploading && (
               <p className="text-sm text-gray-500 mb-2">Uploading...</p>
             )}
+
+            {/* ✅ Availability Toggle */}
+            <div className="mb-4">       
+              <select
+                value={editData.available ? "true" : "false"}
+                onChange={(e) =>
+                  setEditData({ ...editData, available: e.target.value === "true" })
+                }
+                className="flex-1 border p-2 rounded w-full"
+              >
+                <option value="true">Available</option>
+                <option value="false">Not Available</option>
+              </select>
+            </div>
 
             <div className="flex gap-2">
               <button
