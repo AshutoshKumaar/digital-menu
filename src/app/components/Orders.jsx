@@ -58,35 +58,27 @@ export default function OwnerOrdersPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // ✅ UPDATED FUNCTION: Status ke hisaab se reward logic call kiya
   const updateOrderStatus = async (orderId, status, userId) => {
     try {
       if (!userId) {
         console.error("Cannot update reward: Customer userId is missing.");
-        // Fir bhi order status update kar denge
       }
-      
+
       const orderRef = doc(db, "orders", orderId);
-      
-      // 1. Order status update karo
+
       await updateDoc(orderRef, { status });
 
-      // 2. Reward Logic handle karo
       if (userId) {
         if (status === "confirmed") {
-          // CONFIRM: Pending rewards ko permanent wallet mein transfer karo
           await updateRewardOnOrderConfirm(orderId, userId);
           console.log(`✅ Order ${orderId} confirmed. Rewards transferred.`);
         } else if (status === "cancelled") {
-          // CANCEL: Pending rewards ko wallet se hatao
           await deductRewardOnOrderCancel(orderId, userId);
           console.log(`❌ Order ${orderId} cancelled. Pending rewards removed.`);
         }
       }
-
     } catch (error) {
       console.error(`Error processing status update for order ${orderId}:`, error);
-      // You might want to revert the status update here if the reward logic fails
     }
   };
 
@@ -132,107 +124,124 @@ export default function OwnerOrdersPage() {
         <p className="text-center text-gray-500 text-2xl">No orders found.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
-          {orders.map((order) => (
-            <div
-              key={order.id}
-              className="bg-white rounded-xl shadow-lg border p-5 flex flex-col justify-between hover:shadow-2xl transition"
-            >
-              {/* Customer Info */}
-              <div className="space-y-1 text-sm sm:text-base">
-                <p>
-                  <strong>👤 Name:</strong> {order.fullName || "N/A"}
-                </p>
-                <p>
-                  <strong>📞 Phone:</strong> {order.mobile || "N/A"}
-                </p>
-                <p>
-                  <strong>🛒 Type:</strong> {order.orderType || "N/A"}
-                </p>
-                {order.orderType === "inside" && (
-                  <p>
-                    <strong>📍 Table:</strong> {order.tableNumber || "N/A"}
-                  </p>
-                )}
-                {order.orderType === "outside" && (
-                  <p>
-                    <strong>🏠 Address:</strong> {order.address || "N/A"}
-                  </p>
-                )}
-                <p>
-                  <strong>📅 Date:</strong>{" "}
-                  {order.createdAt?.toDate
-                    ? order.createdAt.toDate().toLocaleString()
-                    : "N/A"}
-                </p>
-              </div>
+          {orders.map((order) => {
+            const subtotal = order.total ?? order.subtotal ?? 0;
+            const deliveryCharge = order.deliveryCharge ?? 0;
+            const finalTotal = subtotal + deliveryCharge;
 
-              {/* Items */}
-              <div className="mt-3 bg-gray-50 p-3 rounded-lg">
-                <p className="font-semibold text-gray-800 mb-1">🍽 Items:</p>
-                <ul className="list-disc pl-5">
-                  {order.items?.length > 0 ? (
-                    order.items.map((item, idx) => (
-                      <li key={idx}>
-                        {item.name} x {item.quantity} = ₹{item.totalPrice}
-                      </li>
-                    ))
-                  ) : (
-                    <li>No items found</li>
+            return (
+              <div
+                key={order.id}
+                className="bg-white rounded-xl shadow-lg border p-5 flex flex-col justify-between hover:shadow-2xl transition"
+              >
+                {console.log("Rendering order:", order)}
+                {/* Customer Info */}
+                <div className="space-y-1 text-sm sm:text-base">
+                  <p>
+                    <strong>👤 Name:</strong> {order.fullName || "N/A"}
+                  </p>
+                  <p>
+                    <strong>🛒 Type:</strong> {order.orderType || "N/A"}
+                  </p>
+                  {order.orderType === "inside" && (
+                    <p>
+                      <strong>📍 Table:</strong> {order.tableNumber || "N/A"}
+                    </p>
                   )}
-                </ul>
-                <p className="mt-2 font-bold text-green-600">
-                  Total: ₹{order.total ?? order.subtotal ?? 0}
-                </p>
-              </div>
+                  {order.orderType === "outside" && (
+                    <div>
+                       <p>
+                    <strong>📞 Phone:</strong> {order.mobile || "N/A"}
+                  </p>
+                    <p>
+                      <strong>🏠 Address:</strong> {order.address || "N/A"}
+                    </p>
+                    </div>
+                  )}
+                  <p>
+                    <strong>📅 Date:</strong>{" "}
+                    {order.createdAt?.toDate
+                      ? order.createdAt.toDate().toLocaleString()
+                      : "N/A"}
+                  </p>
+                </div>
 
-              {/* Status */}
-              <div className="mt-3">
-                <span className="font-bold">📌 Status: </span>
-                <span
-                  className={`capitalize px-2 py-1 rounded-full text-xs sm:text-sm ${
-                    order.status === "confirmed"
-                      ? "bg-green-100 text-green-700"
-                      : order.status === "cancelled"
-                      ? "bg-red-100 text-red-700"
-                      : "bg-yellow-100 text-yellow-700"
-                  }`}
-                >
-                  {order.status}
-                </span>
-              </div>
+                {/* Items */}
+                <div className="mt-3 bg-gray-50 p-3 rounded-lg">
+                  <p className="font-semibold text-gray-800 mb-1">🍽 Items:</p>
+                  <ul className="list-disc pl-5">
+                    {order.items?.length > 0 ? (
+                      order.items.map((item, idx) => (
+                        <li key={idx}>
+                          {item.name} x {item.quantity} = ₹{item.totalPrice}
+                        </li>
+                      ))
+                    ) : (
+                      <li>No items found</li>
+                    )}
+                  </ul>
 
-              {/* Actions */}
-              <div className="mt-4 flex flex-col md:flex-row gap-2">
-                {order.status === "pending" && (
-                  <>
-                    <button
-                      onClick={() =>
-                        updateOrderStatus(order.id, "confirmed", order.userId)
-                      }
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg"
-                    >
-                      ✅ Confirm
-                    </button>
+                  {/* ✅ Delivery Charge and Final Total Added Here */}
+                  <p className="mt-2 font-bold text-green-600">
+                    Subtotal: ₹{subtotal}
+                  </p>
+                  <p className="mt-1 font-bold text-green-600">
+                    Delivery Charge: ₹{deliveryCharge}
+                  </p>
+                  <p className="mt-1 font-bold text-green-700">
+                    Final Total: ₹{finalTotal}
+                  </p>
+                </div>
 
-                    <button
-                      onClick={() =>
-                        updateOrderStatus(order.id, "cancelled", order.userId)
-                      }
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg"
-                    >
-                      ❌ Cancel
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => handleDelete(order.id)}
-                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 rounded-lg"
-                >
-                  🗑 Delete
-                </button>
+                {/* Status */}
+                <div className="mt-3">
+                  <span className="font-bold">📌 Status: </span>
+                  <span
+                    className={`capitalize px-2 py-1 rounded-full text-xs sm:text-sm ${
+                      order.status === "confirmed"
+                        ? "bg-green-100 text-green-700"
+                        : order.status === "cancelled"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}
+                  >
+                    {order.status}
+                  </span>
+                </div>
+
+                {/* Actions */}
+                <div className="mt-4 flex flex-col md:flex-row gap-2">
+                  {order.status === "pending" && (
+                    <>
+                      <button
+                        onClick={() =>
+                          updateOrderStatus(order.id, "confirmed", order.userId)
+                        }
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg"
+                      >
+                        ✅ Confirm
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          updateOrderStatus(order.id, "cancelled", order.userId)
+                        }
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg"
+                      >
+                        ❌ Cancel
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => handleDelete(order.id)}
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 rounded-lg"
+                  >
+                    🗑 Delete
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

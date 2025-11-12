@@ -9,6 +9,7 @@ export default function ThermalBillPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
 
+  // 🔹 Track logged-in user
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -17,6 +18,7 @@ export default function ThermalBillPage() {
     return () => unsubscribeAuth();
   }, []);
 
+  // 🔹 Fetch user-specific orders
   useEffect(() => {
     if (!user) return;
     setLoading(true);
@@ -45,6 +47,7 @@ export default function ThermalBillPage() {
     return () => unsubscribe();
   }, [user]);
 
+  // 🔹 Print function
   const handlePrint = (orderId) => {
     const printContent = document.getElementById(orderId);
     const WinPrint = window.open("", "", "width=300,height=600");
@@ -54,34 +57,27 @@ export default function ThermalBillPage() {
         <head>
           <title>Receipt #${orderId}</title>
           <style>
-            /* Thermal receipt width */
             body {
               font-family: monospace;
-              width: 80mm; /* default 80mm */
+              width: 80mm;
               margin: 0;
-              padding: 5px 2mm;
+              padding: 4px;
             }
 
             @media print {
-              body {
-                width: 80mm;
-                margin: 0;
-                padding: 0;
-              }
               @page {
                 size: 80mm auto;
                 margin: 0;
               }
-              button {
-                display: none; /* hide buttons in print */
-              }
+              button { display: none; }
             }
 
             .center { text-align: center; }
+            .bold { font-weight: bold; }
             .line { border-bottom: 1px dashed #000; margin: 4px 0; }
-            .total-line { font-weight: bold; }
-            .barcode { margin-top: 10px; text-align: center; font-size: 10px; }
             .item { display: flex; justify-content: space-between; }
+            .total-line { font-weight: bold; }
+            .small { font-size: 11px; }
           </style>
         </head>
         <body>${printContent.innerHTML}</body>
@@ -110,6 +106,7 @@ export default function ThermalBillPage() {
       <h2 className="text-2xl font-semibold text-center mb-4">
         Thermal Receipts
       </h2>
+
       {orders.length === 0 ? (
         <p className="text-center text-gray-500 text-xl">No orders found.</p>
       ) : (
@@ -120,54 +117,78 @@ export default function ThermalBillPage() {
               id={order.id}
               className="bg-white rounded shadow p-3 border text-xs"
             >
-              {/* Header */}
-              <div className="center">
-                <p>************************</p>
-                <p>RECEIPT</p>
-                <p>************************</p>
+              {/* ---------- HEADER ---------- */}
+              <div className="text-center bold">
+                <p className="bold text-base">OMG KFC Z-II</p>
+                <p className="small">Address: New Market Road</p>
+                <p className="small">Near Parkash Talkies</p>
+                <p className="small">Phone: +918210707539</p>
+                <p className="small">web: kfczaika@gmail.com</p>
+              </div>
+              <div className="border-b-2 my-2"></div>
+
+              {/* ---------- ORDER DETAILS ---------- */}
+              <div className="">
+                <p>Bill No: default</p>
+                <p>Order type: {order.orderType}</p>
+              </div>
+              <div className="border-b-2 my-2"></div>
+
+              {/* ---------- ITEMS LIST ---------- */}
+              {/* ---------- ITEMS LIST ---------- */}
+{order.items?.length > 0 ? (
+  <div>
+    <div className="flex justify-between font-semibold border-b border-dashed border-black pb-1 mb-1 text-xs">
+      <span style={{ width: "20%", textAlign: "left" }}>QTY</span>
+      <span style={{ width: "60%", textAlign: "center" }}>ITEM</span>
+      <span style={{ width: "20%", textAlign: "right" }}>PRICE</span>
+    </div>
+
+    {order.items.map((item, idx) => (
+      <div
+        key={idx}
+        className="flex justify-between small border-b border-dashed border-black py-0.5"
+        style={{ fontSize: "12px", marginBottom: "2px" }}
+      >
+        <span style={{ width: "20%", textAlign: "left" }}>{item.quantity}</span>
+        <span style={{ width: "60%", textAlign: "center" }}>{item.name}</span>
+        <span style={{ width: "20%", textAlign: "right" }}>
+          ₹{item.totalPrice?.toFixed(2) ?? 0}
+        </span>
+      </div>
+    ))}
+  </div>
+) : (
+  <p className="small">No items found</p>
+)}
+
+              <div className="line my-2"></div>
+
+              {/* ---------- TOTALS ---------- */}
+              <div className="text-right">
+                <span>Subtotal :- </span>
+                <span>&nbsp;₹ &nbsp;{order.subtotal?.toFixed(2) ?? 0}</span>
+              </div>
+             <div className="text-right border-b border-dashed border-black py-0.5 mb-1">
+                  <span>Delivery Charge&nbsp;:-</span>
+                  <span>&nbsp;₹&nbsp;{order.deliveryCharge?.toFixed(2) ?? 0}</span>
+                </div>
+              <div className="text-right">
+                <span>Total&nbsp;:-</span>
+                <span>&nbsp;₹&nbsp;{order.total?.toFixed(2) ?? 0}</span>
               </div>
 
-              <div className="flex justify-between mt-1">
-                <p>Terminal#1</p>
-                <p>{order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString() : ""}</p>
-              </div>
-              <div className="line"></div>
+              
 
-              {/* Items */}
-              {order.items?.length > 0 ? (
-                order.items.map((item, idx) => (
-                  <div key={idx} className="item">
-                    <span>{item.quantity} x {item.name}</span>
-                    <span>${item.totalPrice.toFixed(2)}</span>
-                  </div>
-                ))
-              ) : (
-                <p>No items found</p>
-              )}
-              <div className="line"></div>
+              <div className="border-b border-dashed border-black mb-1 py-0.5"></div>
 
-              {/* Totals */}
-              <div className="item total-line">
-                <span>TOTAL AMOUNT</span>
-                <span>${order.total?.toFixed(2) ?? 0}</span>
-              </div>
-              <div className="item">
-                <span>CASH</span>
-                <span>${(order.cashPaid ?? order.total)?.toFixed(2)}</span>
-              </div>
-              <div className="item">
-                <span>CHANGE</span>
-                <span>${((order.cashPaid ?? order.total) - (order.total ?? 0)).toFixed(2)}</span>
-              </div>
-              <div className="line"></div>
-
-              {/* Footer */}
-              <div className="center">
-                <p>******** THANK YOU! ********</p>
-                <p className="barcode">||||||||||||||||||||||</p>
+              {/* ---------- FOOTER ---------- */}
+              <div className="text-center my-2">
+                <p className="text-sm font-bold">Thank You</p>
+                <p className="text-[10px]">Visit Again !</p>
               </div>
 
-              {/* Print Button */}
+              {/* ---------- PRINT BUTTON ---------- */}
               <div className="mt-2 flex justify-end">
                 <button
                   onClick={() => handlePrint(order.id)}
