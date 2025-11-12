@@ -93,12 +93,16 @@ const Navbar = () => {
                             {link.label}
                         </a>
                     ))}
-                    <button className="text-indigo-600 font-bold px-4 py-2 mt-2 transition duration-300">
+                   <Link href="/login">
+                       <button className="text-indigo-600 font-bold px-4 py-2 mt-2 transition duration-300">
                         Login
                     </button>
-                    <button className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-2 rounded-full font-bold shadow-lg mt-2 hover:opacity-90 transition duration-300">
+                   </Link>
+                   <Link href="/register">
+                     <button className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-2 rounded-full font-bold shadow-lg mt-2 hover:opacity-90 transition duration-300">
                         Register
                     </button>
+                   </Link>
                 </nav>
             </div>
         </header>

@@ -8,6 +8,7 @@ import GenerateQR from "./GenerateQR";
 import OurInfo from "./OurInfo";
 import OwnerSystemToggle from "./PaymentSettings";
 import OwnerBillPage from "./OwnerBillPage";
+import SalesReport from "./SalesReport";
 
 // Placeholder components (replace with real ones)
 function OurMenu() {
@@ -36,6 +37,9 @@ function PaymentSettingsSection() {
 function BillsSection() {
   return <div className="p-4 text-black"><OwnerBillPage /></div>;
  }
+ function SalesReportSection() {
+  return <div className="p-4 text-black"><SalesReport /></div>;
+ }
 
 
 export default function DashboardTabs() {
@@ -46,8 +50,8 @@ export default function DashboardTabs() {
     { label: "Orders", component: <OrdersSection  /> },
     { label: "Generate QR", component: <GenerateQRCode /> },
     { label: "Our Info", component: <OurInfoSection /> },
-    { label: "Settings", component: <OwnerSystemToggle /> },
-    { label: "Bills", component: <OwnerBillPage /> }
+    { label: "Bills", component: <OwnerBillPage /> },
+    { label: "Sales Report", component: <SalesReportSection /> }
   ];
 
   return (
