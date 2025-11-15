@@ -65,10 +65,10 @@ export default function CartPage({params}) {
                 <div className="flex items-center space-x-2">
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     value={item.quantity}
                     onChange={(e) =>
-                      updateQuantity(item.id, parseInt(e.target.value) || 1)
+                      updateQuantity(item.id, parseInt(e.target.value) || 0)
                     }
                     className="w-16 bg-black border border-gray-600 text-center rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                   />

@@ -9,7 +9,7 @@ export default function SalesReport() {
   const [salesData, setSalesData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 🔹 Track logged-in user
+  // Track logged-in user
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -17,9 +17,10 @@ export default function SalesReport() {
     return () => unsub();
   }, []);
 
-  // 🔹 Fetch orders for this owner
+  // Fetch orders
   useEffect(() => {
     if (!user) return;
+
     const q = query(collection(db, "orders"), where("ownerId", "==", user.uid));
 
     const unsub = onSnapshot(q, (snapshot) => {
@@ -33,12 +34,10 @@ export default function SalesReport() {
 
     return () => unsub();
   }, [user]);
-  console.log(salesData);
-  // 🔹 Calculate per-day sales
-  const dailySales = salesData.reduce((acc, order) => {
-    const dateObj = order.createdAt?.toDate ? order.createdAt.toDate() : null;
 
-    // ✅ Format date in DD/MM/YYYY (10/11/2025)
+  // PROCESS SALES DATA
+  const dailySales = salesData.reduce((acc, order) => {
+    const dateObj = order.createdAt?.toDate?.();
     const formattedDate = dateObj
       ? dateObj.toLocaleDateString("en-GB", {
           day: "2-digit",
@@ -48,22 +47,49 @@ export default function SalesReport() {
       : "Unknown";
 
     if (!acc[formattedDate]) {
-      acc[formattedDate] = { inside: 0, outside: 0, total: 0, count: 0 };
+      acc[formattedDate] = {
+        inside: 0,
+        outside: 0,
+        cancelled: 0,
+        total: 0,
+        countConfirmed: 0,
+        countCancelled: 0,
+      };
     }
 
-    const sale = order.total ?? 0;
-    if (order.orderType === "inside") {
-      acc[formattedDate].inside += sale;
-    } else {
-      acc[formattedDate].outside += sale;
+    const subtotal = order.subtotal ?? 0;
+
+    // ===========================
+    // CANCELLED ORDER — NO CHANGE IN TOTAL
+    // ===========================
+    if (order.status === "cancelled") {
+      const negative = -Math.abs(subtotal);
+
+      acc[formattedDate].cancelled += negative;
+      // ⛔ TOTAL SHOULD NOT CHANGE
+      // acc[formattedDate].total += negative;  // removed
+
+      acc[formattedDate].countCancelled += 1;
+
+      return acc;
     }
-    acc[formattedDate].total += sale;
-    acc[formattedDate].count += 1;
+
+    // ===========================
+    // CONFIRMED ORDERS
+    // ===========================
+    if (order.orderType === "inside") {
+      acc[formattedDate].inside += subtotal;
+    } else {
+      acc[formattedDate].outside += subtotal;
+    }
+
+    // total only adds confirmed subtotal
+    acc[formattedDate].total += subtotal;
+    acc[formattedDate].countConfirmed += 1;
 
     return acc;
   }, {});
 
-  // 🔹 Loading UI
   if (loading)
     return (
       <div className="flex flex-col items-center mt-10 text-gray-600">
@@ -72,15 +98,13 @@ export default function SalesReport() {
       </div>
     );
 
-  // 🔹 Auth check
   if (!user)
     return (
       <p className="text-center mt-5 text-2xl">Please login to see report.</p>
     );
 
-  // 🔹 Render Table
   return (
-    <div className="max-w-3xl mx-auto mt-8 p-2 sm:p-4">
+    <div className="max-w-4xl mx-auto mt-8 p-2 sm:p-4">
       <h2 className="text-2xl font-semibold text-center mb-6">
         📊 Daily Sales Report
       </h2>
@@ -95,32 +119,45 @@ export default function SalesReport() {
             <thead className="bg-gray-100 border-b">
               <tr>
                 <th className="text-left p-2">Date</th>
-                <th className="text-center p-2">Inside Sales (₹)</th>
-                <th className="text-center p-2">Outside Sales (₹)</th>
-                <th className="text-center p-2">Total Sales (₹)</th>
-                <th className="text-center p-2">Orders</th>
+                <th className="text-center p-2">Inside (₹)</th>
+                <th className="text-center p-2">Outside (₹)</th>
+                <th className="text-center p-2 text-red-600">Cancelled (₹)</th>
+                <th className="text-center p-2">Total (₹)</th>
+                <th className="text-center p-2">Confirmed</th>
+                <th className="text-center p-2 text-red-600">Cancelled</th>
               </tr>
             </thead>
+
             <tbody>
               {Object.entries(dailySales)
                 .sort(
                   (a, b) =>
-                    new Date(b[0].split("/").reverse().join("-")) -
+                    new Date(
+                      b[0].split("/").reverse().join("-")
+                    ) -
                     new Date(a[0].split("/").reverse().join("-"))
                 )
                 .map(([date, data]) => (
                   <tr key={date} className="border-b hover:bg-gray-50">
                     <td className="p-2 font-medium">{date}</td>
-                    <td className="text-center p-2">
-                      {data.inside.toFixed(2)}
+
+                    <td className="text-center p-2">{data.inside.toFixed(2)}</td>
+
+                    <td className="text-center p-2">{data.outside.toFixed(2)}</td>
+
+                    <td className="text-center p-2 text-red-600 font-semibold">
+                      {data.cancelled.toFixed(2)}
                     </td>
-                    <td className="text-center p-2">
-                      {data.outside.toFixed(2)}
-                    </td>
+
                     <td className="text-center font-semibold p-2">
                       {data.total.toFixed(2)}
                     </td>
-                    <td className="text-center p-2">{data.count}</td>
+
+                    <td className="text-center p-2">{data.countConfirmed}</td>
+
+                    <td className="text-center text-red-600 p-2">
+                      {data.countCancelled}
+                    </td>
                   </tr>
                 ))}
             </tbody>

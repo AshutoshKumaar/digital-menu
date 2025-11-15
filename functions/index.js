@@ -6,72 +6,94 @@ initializeApp();
 const db = getFirestore();
 
 export const updateOwnerWallet = onDocumentWritten("orders/{orderId}", async (event) => {
-  const beforeData = event.data?.before?.data() || null;
-  const afterData = event.data?.after?.data() || null;
+  const beforeSnap = event.data.before;
+  const afterSnap = event.data.after;
 
-  if (!afterData) return; // deleted order ignore
+  const beforeData = beforeSnap.exists ? beforeSnap.data() : null;
+  const afterData = afterSnap.data();
+
+  if (!afterData) return;
 
   const ownerId = afterData.ownerId;
   const orderType = (afterData.orderType || "").toLowerCase();
-  const subtotal = Number(afterData.subtotal || 0);  // ✅ ONLY SUBTOTAL
+  const subtotal = Number(afterData.subtotal || 0); // ALWAYS USE SUBTOTAL ONLY
 
-  if (!ownerId || !orderType) return;
+  if (!ownerId || !orderType || subtotal <= 0) return;
 
   const walletRef = db.collection("ownerWallet").doc(ownerId);
-  const walletSnap = await walletRef.get();
 
-  const wallet = walletSnap.exists
-    ? walletSnap.data()
-    : { insideTotal: 0, outsideTotal: 0, totalAmount: 0 };
+  const alreadyAdded = !!afterData.alreadyAdded;
+  const cancelProcessed = !!afterData.cancelProcessed;
 
-  const beforeStatus = beforeData?.status || "";
-  const afterStatus = afterData?.status || "";
+  // Update wallet helper
+  const updateWallet = async (delta) => {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(walletRef);
+      const wallet = snap.exists
+        ? snap.data()
+        : { insideTotal: 0, outsideTotal: 0, totalAmount: 0 };
 
-  // 🛑 Already processed → Skip
-  if (afterData.walletUpdated === true) {
-    console.log("⛔ Wallet already updated. Skipping...");
+      tx.set(
+        walletRef, 
+        {
+          insideTotal: (wallet.insideTotal || 0) + (orderType === "inside" ? delta : 0),
+          outsideTotal: (wallet.outsideTotal || 0) + (orderType === "outside" ? delta : 0),
+          totalAmount: (wallet.totalAmount || 0) + delta,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    });
+  };
+
+  // ============================
+  // 1) CREATE — Add subtotal ONCE
+  // ============================
+  const isCreate = beforeSnap.exists === false;
+
+  if (isCreate && !alreadyAdded) {
+    console.log("🟢 ORDER CREATED — ADD SUBTOTAL:", subtotal);
+
+    await updateWallet(subtotal);
+
+    await afterSnap.ref.set({ alreadyAdded: true }, { merge: true });
+
     return;
   }
 
-  // 🟢 STATUS: confirmed → Add subtotal (only once)
+  // ============================
+  // 2) CONFIRMED — No wallet change
+  // ============================
+  const beforeStatus = beforeData?.status;
+  const afterStatus = afterData.status;
+
   if (beforeStatus !== "confirmed" && afterStatus === "confirmed") {
-    console.log("✅ Adding SUBTOTAL:", subtotal);
-
-    await walletRef.set(
-      {
-        insideTotal: wallet.insideTotal + (orderType === "inside" ? subtotal : 0),
-        outsideTotal: wallet.outsideTotal + (orderType === "outside" ? subtotal : 0),
-        totalAmount: wallet.totalAmount + subtotal, // ✅ ONLY SUBTOTAL
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
-
-    // Mark as processed so it doesn't double add
-    await event.data?.after?.ref.set(
-      { walletUpdated: true },
-      { merge: true }
-    );
+    console.log("🟡 Confirm — No wallet action");
+    return;
   }
 
-  // ❌ STATUS: cancelled → Subtotal reverse
+  // ============================
+  // 3) CANCELLED — subtract ONCE
+  // ============================
   if (beforeStatus !== "cancelled" && afterStatus === "cancelled") {
-    console.log("❌ CANCELLING ORDER, subtracting:", subtotal);
+    if (!alreadyAdded) {
+      console.log("⚪ Cancel but not added originally — Skip");
+      return;
+    }
 
-    await walletRef.set(
-      {
-        insideTotal: wallet.insideTotal - (orderType === "inside" ? subtotal : 0),
-        outsideTotal: wallet.outsideTotal - (orderType === "outside" ? subtotal : 0),
-        totalAmount: wallet.totalAmount - subtotal, // ⚠ Only subtract subtotal
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
+    if (cancelProcessed) {
+      console.log("⛔ Cancel already processed — Skip");
+      return;
+    }
 
-    // Prevent double processing
-    await event.data?.after?.ref.set(
-      { walletUpdated: true },
-      { merge: true }
-    );
+    console.log("🔴 ORDER CANCELLED — MINUS SUBTOTAL:", subtotal);
+
+    await updateWallet(-subtotal);
+
+    await afterSnap.ref.set({ cancelProcessed: true }, { merge: true });
+
+    return;
   }
+
+  console.log("⚪ No wallet update needed");
 });

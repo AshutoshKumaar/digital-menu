@@ -32,7 +32,7 @@ export default function DashboardHeader({ userId }) {
 
   // 🪙 Navigate to Wallet page
   const handleWalletClick = () => {
-    router.push("/wallet");
+    router.push("/dashboard/ownerWallet");
     setMenuOpen(false);
   };
 
