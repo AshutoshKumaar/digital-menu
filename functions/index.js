@@ -9,29 +9,33 @@ export const updateOwnerWallet = onDocumentWritten("orders/{orderId}", async (ev
   const beforeData = event.data?.before?.data() || {};
   const afterData = event.data?.after?.data() || {};
 
-  // If no data (e.g., deleted document), exit
-  if (!afterData && !beforeData) return;
+  if (!afterData) return; // deleted order, ignore
 
-  const ownerId = afterData?.ownerId || beforeData?.ownerId;
-  const orderType = (afterData?.orderType || beforeData?.orderType || "").toLowerCase();
-  const totalAmount = Number(afterData?.subtotal ?? beforeData?.subtotal ?? 0);
+  const ownerId = afterData.ownerId;
+  const orderType = (afterData.orderType || "").toLowerCase();
+  const totalAmount = Number(afterData.subtotal || 0);
 
-  if (!ownerId || !orderType) {
-    console.log("⚠️ Missing ownerId/orderType, skipping update.");
-    return;
-  }
+  if (!ownerId || !orderType) return;
 
   const walletRef = db.collection("ownerWallet").doc(ownerId);
   const walletSnap = await walletRef.get();
-  const wallet = walletSnap.exists ? walletSnap.data() : { insideTotal: 0, outsideTotal: 0, totalAmount: 0 };
+  const wallet = walletSnap.exists
+    ? walletSnap.data()
+    : { insideTotal: 0, outsideTotal: 0, totalAmount: 0 };
 
-  // Detect order status changes
-  const beforeStatus = beforeData?.status;
-  const afterStatus = afterData?.status;
+  const beforeStatus = beforeData.status;
+  const afterStatus = afterData.status;
 
-  // Case 1️⃣: Order Confirmed → Add Amount
+  // 🛑 If already processed once → ignore
+  if (afterData.walletUpdated === true) {
+    console.log("⛔ Already processed. Skipping...");
+    return;
+  }
+
+  // 🟢 Case: status becomes confirmed first time
   if (beforeStatus !== "confirmed" && afterStatus === "confirmed") {
-    console.log(`✅ Order confirmed: +${totalAmount}`);
+    console.log("✅ Adding amount for confirmed order:", totalAmount);
+
     await walletRef.set(
       {
         insideTotal: wallet.insideTotal + (orderType === "inside" ? totalAmount : 0),
@@ -41,11 +45,20 @@ export const updateOwnerWallet = onDocumentWritten("orders/{orderId}", async (ev
       },
       { merge: true }
     );
+
+    // Mark order as processed
+    await event.data?.after?.ref.set(
+      {
+        walletUpdated: true,
+      },
+      { merge: true }
+    );
   }
 
-  // Case 2️⃣: Order Cancelled → Deduct Amount
+  // 🟠 Case: cancelled (optional reverse logic)
   if (beforeStatus !== "cancelled" && afterStatus === "cancelled") {
-    console.log(`❌ Order cancelled: -${totalAmount}`);
+    console.log("❌ Deducting for cancelled order:", totalAmount);
+
     await walletRef.set(
       {
         insideTotal: wallet.insideTotal - (orderType === "inside" ? totalAmount : 0),
@@ -55,7 +68,13 @@ export const updateOwnerWallet = onDocumentWritten("orders/{orderId}", async (ev
       },
       { merge: true }
     );
-  }
 
-  console.log(`💰 Wallet updated for owner: ${ownerId}`);
+    // Mark reverse processed
+    await event.data?.after?.ref.set(
+      {
+        walletUpdated: true,
+      },
+      { merge: true }
+    );
+  }
 });
