@@ -14,10 +14,13 @@ import BottomNav from "./FixBottom";
 import OrderSuccessModal from "./SucessMsg";
 import { addRewardOnOrder } from "../utils/AddRewardOnOrder";
 import PhoneLinkModal from "./PhoneLinkModal";
+import { useTranslation } from "@/app/i18n/LanguageContext";   // <-- ADDED
 
 const mooli = Mooli({ weight: "400", subsets: ["latin"] });
 
 export default function CheckoutClient({ ownerId }) {
+  const { t } = useTranslation();  // <-- ADDED
+
   const [modalOpen, setModalOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [owner, setOwner] = useState(null);
@@ -40,15 +43,12 @@ export default function CheckoutClient({ ownerId }) {
   const subtotal = cart.reduce((acc, item) => acc + item.totalPrice, 0);
   const router = useRouter();
 
-  // 🧭 Restaurant fixed location (change this as per your shop)
   const shopLocation = { lat: 25.54544988021849, lng: 87.56932047791145 };
 
-  // 📍 Distance + delivery charge states
   const [userLocation, setUserLocation] = useState(null);
   const [distance, setDistance] = useState(0);
   const [deliveryCharge, setDeliveryCharge] = useState(0);
 
-  // ✅ Load anonymous / logged-in user
   useEffect(() => {
     async function loadUser() {
       const userResult = await getUserId();
@@ -60,7 +60,6 @@ export default function CheckoutClient({ ownerId }) {
     loadUser();
   }, []);
 
-  // ✅ Fetch owner info
   useEffect(() => {
     async function fetchOwner() {
       if (!ownerId) return;
@@ -70,9 +69,8 @@ export default function CheckoutClient({ ownerId }) {
     fetchOwner();
   }, [ownerId]);
 
-  // 🧭 Distance Calculation Formula
   function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Radius of the earth in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
     const a =
@@ -84,7 +82,6 @@ export default function CheckoutClient({ ownerId }) {
     return R * c;
   }
 
-  // 📏 Auto Calculate Delivery Distance & Charge
   useEffect(() => {
     if (orderType === "outside") {
       navigator.geolocation.getCurrentPosition(
@@ -119,7 +116,7 @@ export default function CheckoutClient({ ownerId }) {
     }
   }, [orderType]);
 
-  if (!owner || !userId) return <LoadingScreen />; // Wait for both owner info AND userId
+  if (!owner || !userId) return <LoadingScreen />;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -196,23 +193,25 @@ export default function CheckoutClient({ ownerId }) {
           className="flex items-center space-x-2 bg-gray-800 px-3 py-2 rounded-lg hover:bg-gray-700 transition"
         >
           <ArrowLeft className="w-5 h-5 text-yellow-400" />
-          <span className="text-sm">Back</span>
+          <span className="text-sm">{t("back")}</span>
         </button>
-        <h1 className="text-2xl font-extrabold text-yellow-400">Checkout</h1>
+        <h1 className="text-2xl font-extrabold text-yellow-400">{t("checkout")}</h1>
         <div className="w-10"></div>
       </div>
 
       {/* Owner Info */}
       <div className="mb-6 text-gray-300">
         <h2 className="text-lg font-semibold">{owner.restaurantName}</h2>
-        <p className="text-sm">Contact: {owner.ownerMobile}</p>
+        <p className="text-sm">
+          {t("contact")}: {owner.ownerMobile}
+        </p>
       </div>
 
       {/* Cart */}
       {cart.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-gray-400 mt-20">
           <ShoppingBag className="w-16 h-16 opacity-50 mb-4" />
-          <p className="text-lg">Your cart is empty.</p>
+          <p className="text-lg">{t("cart_empty")}</p>
         </div>
       ) : (
         <>
@@ -222,13 +221,14 @@ export default function CheckoutClient({ ownerId }) {
             onClick={() => setShowDetails(!showDetails)}
           >
             <div className="flex items-center justify-between cursor-pointer">
-              <h2 className="text-lg font-bold">Order Details</h2>
+              <h2 className="text-lg font-bold">{t("order_details")}</h2>
               <ShoppingBag
                 className={`w-6 h-6 text-yellow-400 transition-transform ${
                   showDetails ? "rotate-180" : "rotate-0"
                 }`}
               />
             </div>
+
             <AnimatePresence>
               {showDetails && (
                 <motion.div
@@ -256,25 +256,25 @@ export default function CheckoutClient({ ownerId }) {
 
                   <div className="mt-4 border-t border-gray-700 pt-4 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Subtotal</span>
+                      <span className="text-gray-400">{t("subtotal")}</span>
                       <span>₹{subtotal}</span>
                     </div>
 
                     {orderType === "outside" && (
                       <>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Distance</span>
+                          <span className="text-gray-400">{t("distance")}</span>
                           <span>{distance} km</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Delivery Charge</span>
+                          <span className="text-gray-400">{t("delivery_charge")}</span>
                           <span>₹{deliveryCharge}</span>
                         </div>
                       </>
                     )}
 
                     <div className="flex justify-between text-lg font-semibold border-t border-gray-700 pt-2">
-                      <span>Total</span>
+                      <span>{t("total")}</span>
                       <span className="text-yellow-400 text-xl font-bold">
                         ₹{total}
                       </span>
@@ -285,10 +285,10 @@ export default function CheckoutClient({ ownerId }) {
             </AnimatePresence>
           </div>
 
-          {/* Order Type */}
+          {/* Order Type Selector */}
           <div className="my-6">
             <label className="block mb-2 font-semibold text-yellow-400 text-lg">
-              Order Type
+              {t("order_type")}
             </label>
             <div className="relative">
               <select
@@ -296,8 +296,8 @@ export default function CheckoutClient({ ownerId }) {
                 onChange={(e) => setOrderType(e.target.value)}
                 className="w-full bg-gradient-to-r from-gray-800 to-gray-900 text-yellow-600 px-2 py-3 rounded-xl border border-gray-600 shadow-md"
               >
-                <option value="inside">🍽️ Dine-In (Inside)</option>
-                <option value="outside">🚚 Delivery (Outside)</option>
+                <option value="inside">🍽️ {t("dine_in")}</option>
+                <option value="outside">🚚 {t("delivery")}</option>
               </select>
             </div>
           </div>
@@ -309,28 +309,28 @@ export default function CheckoutClient({ ownerId }) {
               className="space-y-4 bg-gray-800 p-6 rounded-2xl shadow-lg"
             >
               <div>
-                <label className="block mb-1">Name:</label>
+                <label className="block mb-1">{t("name")}</label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  placeholder="Enter your full name"
+                  placeholder={t("enter_name")}
                   className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600"
                 />
               </div>
 
               {orderType === "inside" && (
                 <div>
-                  <label className="block mb-1">Table Number:</label>
+                  <label className="block mb-1">{t("table_number")}</label>
                   <input
                     type="text"
                     name="table"
                     value={formData.table}
                     onChange={handleChange}
                     required
-                    placeholder="Enter your table number"
+                    placeholder={t("enter_table")}
                     className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600"
                   />
                 </div>
@@ -339,50 +339,53 @@ export default function CheckoutClient({ ownerId }) {
               {orderType === "outside" && (
                 <>
                   <div>
-                    <label className="block mb-1">Phone Number:</label>
+                    <label className="block mb-1">{t("phone")}</label>
                     <input
                       type="tel"
                       name="number"
                       value={formData.number}
                       onChange={handleChange}
                       required
-                      placeholder="Enter your phone number"
+                      placeholder={t("enter_phone")}
                       className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600"
                     />
                   </div>
+
                   <div>
-                    <label className="block mb-1">Address:</label>
+                    <label className="block mb-1">{t("address")}</label>
                     <input
                       type="text"
                       name="address"
                       value={formData.address}
                       onChange={handleChange}
                       required
-                      placeholder="Enter your delivery address"
+                      placeholder={t("enter_address")}
                       className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600"
                     />
                   </div>
+
                   <div>
-                    <label className="block mb-1">City:</label>
+                    <label className="block mb-1">{t("city")}</label>
                     <input
                       type="text"
                       name="city"
                       value={formData.city}
                       onChange={handleChange}
                       required
-                      placeholder="Enter your city"
+                      placeholder={t("enter_city")}
                       className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600"
                     />
                   </div>
+
                   <div>
-                    <label className="block mb-1">Pincode:</label>
+                    <label className="block mb-1">{t("pincode")}</label>
                     <input
                       type="text"
                       name="pincode"
                       value={formData.pincode}
                       onChange={handleChange}
                       required
-                      placeholder="Enter your area pincode"
+                      placeholder={t("enter_pincode")}
                       className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-600"
                     />
                   </div>
@@ -399,21 +402,23 @@ export default function CheckoutClient({ ownerId }) {
                 {loading && (
                   <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></span>
                 )}
-                <span>{loading ? "Placing Order..." : "Place Order"}</span>
+                <span>{loading ? t("placing_order") : t("place_order")}</span>
               </button>
             </form>
           )}
         </>
       )}
 
-      {/* ✅ Success Modal */}
       <OrderSuccessModal
         show={modalOpen}
         onClose={() => {
           setModalOpen(false);
           router.push(`/restaurant/${ownerId}`);
         }}
-        message={`🎉 Congratulations! You earned ₹${reward.rupees} and ${reward.coins} coins!`}
+        message={t("success_message")
+          .replace("{rupees}", reward.rupees)
+          .replace("{coins}", reward.coins)
+        }
         rupees={reward.rupees}
         coins={reward.coins}
       />

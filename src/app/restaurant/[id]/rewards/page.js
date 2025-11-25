@@ -7,79 +7,88 @@ import { Gift, Coins, Wallet, ChevronDown, ChevronUp, CheckCircle, XCircle } fro
 import BottomNav from "@/app/components/FixBottom";
 import Image from "next/image";
 import { Mooli } from "next/font/google";
-import PhoneLinkModal from "@/app/components/PhoneLinkModal"; // ✅ Added
+import PhoneLinkModal from "@/app/components/PhoneLinkModal";
+
+// ⭐️ Translation Hook
+import { useTranslation } from "@/app/i18n/LanguageContext";
 
 const mooli = Mooli({ subsets: ["latin"], weight: ["400"] });
 
 export default function RewardsPage({ params }) {
-   const { id: ownerId } = React.use(params);
+  const { t } = useTranslation(); // ⭐ translation
+  const { id: ownerId } = React.use(params);
+
   const [wallet, setWallet] = useState({
     coins: 0,
     rupees: 0,
     pendingCoins: 0,
     pendingRupees: 0,
   });
+
   const [transactions, setTransactions] = useState([]);
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [walletOpen, setWalletOpen] = useState(false);
 
-  // ✅ Added for login flow
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [userId, setUserId] = useState(null);
 
   const fetchWalletAndTransactions = async (uid) => {
     try {
       const safeUserId = uid;
-      // ✅ Fetch wallet
+
+      // Fetch wallet
       const walletRef = doc(db, "users", safeUserId, "wallet", "balance");
       const walletSnap = await getDoc(walletRef);
       const walletData = walletSnap.exists()
         ? walletSnap.data()
         : { coins: 0, rupees: 0, pendingCoins: 0, pendingRupees: 0 };
+
       setWallet(walletData);
 
-      // ✅ Fetch transactions
+      // Fetch transactions
       const txnCol = collection(db, "users", safeUserId, "transactions");
       const txnQuery = query(txnCol, orderBy("date", "desc"));
       const txnSnap = await getDocs(txnQuery);
+
       const txs = txnSnap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
         date: d.data().date?.toDate()?.toLocaleDateString() || "",
       }));
+
       setTransactions(txs);
 
-      // ✅ Static offers
+      // Offers list
       setOffers([
         {
           id: 1,
-          title: "Free Cold Drink",
-          desc: "Redeem 2000 Coins for one complimentary soft drink.",
+          title: t("free_cold_drink"),
+          desc: t("offer_cold_drink_desc"),
           cost: 2000,
-          img: "https://images.unsplash.com/photo-1598038990523-32bcaa29f679?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0",
+          img: "https://images.unsplash.com/photo-1598038990523-32bcaa29f679?q=80&w=687&auto=format&fit=crop",
           color: "bg-yellow-400",
         },
         {
           id: 2,
-          title: "Flat 20% Off",
-          desc: "Redeem 5000 Coins to get 20% off your entire bill.",
+          title: t("flat_20_off"),
+          desc: t("offer_20_desc"),
           cost: 5000,
           img: "https://images.unsplash.com/photo-1744893174562-7b386359bae7?w=600&auto=format&fit=crop&q=60",
           color: "bg-purple-400",
         },
         {
           id: 3,
-          title: "Free Dessert of the Day",
-          desc: "Redeem 1500 Coins for a sweet surprise.",
+          title: t("free_dessert"),
+          desc: t("offer_dessert_desc"),
           cost: 1500,
           img: "https://images.unsplash.com/photo-1744893174562-7b386359bae7?w=600&auto=format&fit=crop&q=60",
           color: "bg-green-400",
         },
         {
           id: 4,
-          title: "₹50 Wallet Credit",
-          desc: "Redeem 8000 Coins to instantly get ₹50 added to your wallet.",
+          title: t("wallet_50"),
+          desc: t("offer_wallet_desc"),
           cost: 8000,
           img: "https://images.unsplash.com/photo-1744893174562-7b386359bae7?w=600&auto=format&fit=crop&q=60",
           color: "bg-red-400",
@@ -98,7 +107,6 @@ export default function RewardsPage({ params }) {
       const userResult = await getUserId();
 
       if (!userResult || userResult.isAnonymous) {
-        // ✅ Not logged in → show OTP modal
         setShowPhoneModal(true);
         setLoading(false);
         return;
@@ -110,37 +118,36 @@ export default function RewardsPage({ params }) {
     init();
   }, []);
 
-  const handleWithdraw = () => alert("Withdraw request placed ✅");
-  const handleRedeem = (offer) => alert(`Redeem request for "${offer.title}" placed!`);
+  const handleWithdraw = () => alert(t("withdraw"));
+  const handleRedeem = (offer) => alert(t("redeem") + " - " + offer.title);
 
   if (loading) {
     return (
-      <div className={`min-h-screen bg-gray-900 text-white flex items-center justify-center ${mooli.className}`}>
-        <p className="text-xl text-yellow-400">Loading Rewards...</p>
+      <div
+        className={`min-h-screen bg-gray-900 text-white flex items-center justify-center ${mooli.className}`}
+      >
+        <p className="text-xl text-yellow-400">{t("loading_rewards")}</p>
       </div>
     );
   }
 
   return (
     <div className={`min-h-screen bg-gray-900 text-white ${mooli.className}`}>
-      {/* ✅ Show login modal if not logged in */}
       <PhoneLinkModal
         show={showPhoneModal}
-        onClose={() => {
-          setShowPhoneModal(false);
-        }}
+        onClose={() => setShowPhoneModal(false)}
       />
 
       {/* HEADER */}
       <header className="pt-8 pb-4 px-6 bg-gray-900 sticky top-0 z-10 border-b border-gray-800">
         <h1 className="text-3xl font-extrabold text-yellow-400 flex items-center">
-          <Gift className="w-8 h-8 mr-2" /> Rewards Hub
+          <Gift className="w-8 h-8 mr-2" /> {t("rewards_hub")}
         </h1>
       </header>
 
       {/* MAIN */}
       <main className="p-6">
-        {/* WALLET SECTION */}
+        {/* WALLET */}
         <div
           className="bg-gray-800 p-6 rounded-2xl mb-10 cursor-pointer hover:scale-[1.01] transition"
           onClick={() => setWalletOpen(!walletOpen)}
@@ -148,22 +155,34 @@ export default function RewardsPage({ params }) {
           <div className="flex justify-between">
             <div>
               <p className="text-gray-300 flex items-center mb-1">
-                <Wallet className="w-4 h-4 mr-2 text-yellow-400" /> Current Balance
+                <Wallet className="w-4 h-4 mr-2 text-yellow-400" />{" "}
+                {t("current_balance")}
               </p>
+
               <h2 className="text-3xl font-bold text-yellow-400">₹{wallet.rupees}</h2>
-              <p className="text-gray-400 text-sm">Pending: ₹{wallet.pendingRupees || 0}</p>
+              <p className="text-gray-400 text-sm">
+                {t("pending")}: ₹{wallet.pendingRupees}
+              </p>
             </div>
 
             <div className="text-right">
-              <p className="text-sm text-purple-300">Reward Coins</p>
+              <p className="text-sm text-purple-300">{t("reward_coins")}</p>
               <div className="flex items-center justify-end space-x-2">
                 <Coins className="w-6 h-6 text-purple-400" />
-                <p className="text-2xl font-bold text-purple-400">{wallet.coins.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-purple-400">
+                  {wallet.coins.toLocaleString()}
+                </p>
               </div>
-              <p className="text-xs text-gray-400 mt-1">Pending: {wallet.pendingCoins?.toLocaleString() || 0}</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {t("pending")}: {wallet.pendingCoins.toLocaleString()}
+              </p>
             </div>
 
-            {walletOpen ? <ChevronUp className="text-yellow-400" /> : <ChevronDown className="text-yellow-400" />}
+            {walletOpen ? (
+              <ChevronUp className="text-yellow-400" />
+            ) : (
+              <ChevronDown className="text-yellow-400" />
+            )}
           </div>
 
           {walletOpen && (
@@ -175,7 +194,9 @@ export default function RewardsPage({ params }) {
                 >
                   <div>
                     <p
-                      className={`${tx.type === "Added" ? "text-green-400" : "text-red-400"} font-bold`}
+                      className={`${
+                        tx.type === "Added" ? "text-green-400" : "text-red-400"
+                      } font-bold`}
                     >
                       {tx.amount}
                     </p>
@@ -184,20 +205,22 @@ export default function RewardsPage({ params }) {
                   <span className="text-gray-500 text-xs">{tx.date}</span>
                 </div>
               ))}
+
               <button
                 onClick={handleWithdraw}
                 className="w-full py-2 mt-2 bg-yellow-500 text-gray-900 rounded-xl font-bold hover:bg-yellow-400"
               >
-                Withdraw
+                {t("withdraw")}
               </button>
             </div>
           )}
         </div>
 
-        {/* OFFERS SECTION */}
+        {/* OFFERS */}
         <h2 className="text-2xl font-bold text-yellow-400 mb-6 border-b border-gray-700 pb-2">
-          Exclusive Coin Rewards
+          {t("exclusive_coin_rewards")}
         </h2>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {offers.map((offer) => (
             <div
@@ -207,12 +230,17 @@ export default function RewardsPage({ params }) {
               <div className="relative w-full h-48">
                 <Image src={offer.img} alt={offer.title} fill className="object-cover" />
                 <div className="absolute top-2 right-2 bg-black/70 text-white rounded-full px-2 flex items-center">
-                  <Coins className="w-4 h-4 mr-1 text-purple-400" /> {offer.cost.toLocaleString()}
+                  <Coins className="w-4 h-4 mr-1 text-purple-400" />{" "}
+                  {offer.cost.toLocaleString()}
                 </div>
               </div>
+
               <div className="p-4 flex-1 flex flex-col">
-                <h3 className="text-xl font-bold text-white mb-1">{offer.title}</h3>
+                <h3 className="text-xl font-bold text-white mb-1">
+                  {offer.title}
+                </h3>
                 <p className="text-gray-400 text-sm mb-2">{offer.desc}</p>
+
                 <button
                   disabled={wallet.coins < offer.cost}
                   onClick={() => handleRedeem(offer)}
@@ -224,11 +252,12 @@ export default function RewardsPage({ params }) {
                 >
                   {wallet.coins >= offer.cost ? (
                     <span className="flex items-center justify-center">
-                      <CheckCircle className="w-5 h-5 mr-1" /> Redeem
+                      <CheckCircle className="w-5 h-5 mr-1" /> {t("redeem")}
                     </span>
                   ) : (
                     <span className="flex items-center justify-center">
-                      <XCircle className="w-5 h-5 mr-1" /> Need {offer.cost - wallet.coins} Coins
+                      <XCircle className="w-5 h-5 mr-1" /> {t("need")}{" "}
+                      {offer.cost - wallet.coins} {t("coins")}
                     </span>
                   )}
                 </button>

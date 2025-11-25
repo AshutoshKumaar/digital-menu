@@ -6,18 +6,20 @@ import BottomNav from "@/app/components/FixBottom";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Mooli } from "next/font/google";
+import { useTranslation } from "@/app/i18n/LanguageContext";
 
 const mooli = Mooli({ subsets: ["latin"], weight: ["400"] });
 
-export default function UserOrdersPage({params}) {
-  const {id: ownerId} = React.use(params)
+export default function UserOrdersPage({ params }) {
+  const { id: ownerId } = React.use(params);
   const router = useRouter();
+  const { t } = useTranslation(); // 🚀 Translation hook
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
 
-  // Get userId from localStorage
+  // Load userId
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
     if (!storedUserId) {
@@ -27,7 +29,7 @@ export default function UserOrdersPage({params}) {
     setUserId(storedUserId);
   }, []);
 
-  // Fetch Orders
+  // Fetch orders
   useEffect(() => {
     if (!userId) return;
 
@@ -69,7 +71,7 @@ export default function UserOrdersPage({params}) {
       <div
         className={`min-h-screen bg-gray-900 text-yellow-400 flex items-center justify-center ${mooli.className}`}
       >
-        Loading Orders...
+        {t("loading_orders")}
       </div>
     );
   }
@@ -77,7 +79,9 @@ export default function UserOrdersPage({params}) {
   return (
     <div className={`min-h-screen bg-gray-900 text-white ${mooli.className}`}>
       <header className="sticky top-0 bg-gray-900 border-b-2 py-4 px-6 z-10 border-yellow-400">
-        <h1 className="text-3xl font-bold text-yellow-400">My Orders</h1>
+        <h1 className="text-3xl font-bold text-yellow-400">
+          {t("my_orders")}
+        </h1>
       </header>
 
       <main className="p-6 space-y-6">
@@ -90,10 +94,8 @@ export default function UserOrdersPage({params}) {
               height={120}
               className="mx-auto mb-4 opacity-70"
             />
-            <h2 className="text-xl text-gray-300 mb-2">No Orders Yet</h2>
-            <p className="text-gray-500">
-              Place your first order and it will appear here.
-            </p>
+            <h2 className="text-xl text-gray-300 mb-2">{t("no_orders_title")}</h2>
+            <p className="text-gray-500">{t("no_orders_subtext")}</p>
           </div>
         ) : (
           orders.map((order) => (
@@ -104,7 +106,7 @@ export default function UserOrdersPage({params}) {
               {/* Header */}
               <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-3">
                 <p className="text-gray-400 text-sm">
-                  Order ID: {order.id.slice(0, 8)}
+                  {t("order_id")}: {order.id.slice(0, 8)}
                 </p>
                 <span className="text-yellow-400 text-sm">{order.date}</span>
               </div>
@@ -123,13 +125,13 @@ export default function UserOrdersPage({params}) {
 
               {/* Delivery Charge */}
               <div className="flex justify-between mt-2 text-gray-400">
-                <span>Delivery Charge</span>
+                <span>{t("delivery_charge")}</span>
                 <span>₹{order.deliveryCharge || 0}</span>
               </div>
 
               {/* Total */}
               <div className="flex justify-between items-center mt-4 border-t border-gray-700 pt-3">
-                <p className="text-gray-300">Total</p>
+                <p className="text-gray-300">{t("total")}</p>
                 <p className="text-yellow-400 font-bold text-lg">
                   ₹{order.total}
                 </p>
@@ -137,7 +139,7 @@ export default function UserOrdersPage({params}) {
 
               {/* Status */}
               <p className="mt-3 text-yellow-400 font-semibold capitalize">
-                Status: {order.status || "Preparing"}
+                {t("status")}: {order.status || "Preparing"}
               </p>
             </div>
           ))

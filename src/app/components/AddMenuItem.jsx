@@ -12,14 +12,19 @@ import * as XLSX from "xlsx";
 
 export default function AddMenuItem({ ownerId }) {
   const [name, setName] = useState("");
+  const [nameHi, setNameHi] = useState(""); 
   const [subname, setSubname] = useState("");
+  const [subnameHi, setSubnameHi] = useState(""); 
   const [price, setPrice] = useState("");
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(""); // English
+  const [categoryHi, setCategoryHi] = useState(""); // 🔥 Hindi Category
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Helper: Parse CSV or Excel
+  // -----------------------------
+  // CSV / Excel Parse
+  // -----------------------------
   const parseFile = async (file) => {
     const ext = file.name.split(".").pop().toLowerCase();
 
@@ -43,7 +48,9 @@ export default function AddMenuItem({ ownerId }) {
     }
   };
 
-  // ✅ Bulk Upload Handler
+  // -----------------------------
+  // Bulk Upload
+  // -----------------------------
   const handleBulkUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -55,9 +62,12 @@ export default function AddMenuItem({ ownerId }) {
       for (const item of items) {
         await addDoc(collection(db, "owners", ownerId, "menu"), {
           name: item.name || "",
+          name_hi: item.name_hi || "",
           subname: item.subname || "",
+          subname_hi: item.subname_hi || "",
           price: Number(item.price) || 0,
-          category: item.category || "Uncategorized",
+          category: item.category || "",
+          category_hi: item.category_hi || "", // 🔥 Hindi category support
           imageUrl: item.imageUrl || "",
           available: true,
           createdAt: serverTimestamp(),
@@ -73,12 +83,15 @@ export default function AddMenuItem({ ownerId }) {
     }
   };
 
-  // ✅ Single Item Upload
+  // -----------------------------
+  // Single Add Item
+  // -----------------------------
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!file) return alert("Please select an image");
 
     setLoading(true);
+
     try {
       const fname = `owners/${ownerId}/menu/${uuidv4()}`;
       const ref = storageRef(storage, fname);
@@ -93,22 +106,30 @@ export default function AddMenuItem({ ownerId }) {
         },
         async () => {
           const url = await getDownloadURL(uploadTask.snapshot.ref);
+
           await addDoc(collection(db, "owners", ownerId, "menu"), {
             name,
+            name_hi: nameHi,
             subname,
+            subname_hi: subnameHi,
             price: Number(price),
             category,
+            category_hi: categoryHi, // 🔥 Save Hindi category
             imageUrl: url,
             available: true,
             createdAt: serverTimestamp(),
           });
 
           setName("");
+          setNameHi("");
           setSubname("");
+          setSubnameHi("");
           setPrice("");
           setCategory("");
+          setCategoryHi(""); // reset Hindi category
           setFile(null);
           setPreview(null);
+
           alert("Item added successfully ✅");
           setLoading(false);
         }
@@ -142,40 +163,64 @@ export default function AddMenuItem({ ownerId }) {
 
   return (
     <div className="relative space-y-8">
-      {/* ✅ Single Upload Form */}
+      {/* Single Upload */}
       <form
         onSubmit={handleAdd}
-        className="bg-gray-50 p-6 rounded-2xl shadow-xl space-y-4 transition-transform transform hover:scale-[1.01]"
+        className="bg-gray-50 p-6 rounded-2xl shadow-xl space-y-4"
       >
         <input
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Item Name"
-          className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-yellow-400"
+          placeholder="Item Name (English)"
+          className="w-full border border-gray-300 p-3 rounded-lg"
         />
+
+        <input
+          value={nameHi}
+          onChange={(e) => setNameHi(e.target.value)}
+          placeholder="Item Name (Hindi)"
+          className="w-full border border-gray-300 p-3 rounded-lg"
+        />
+
         <input
           value={subname}
           onChange={(e) => setSubname(e.target.value)}
-          placeholder="Sub Name"
-          className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-yellow-400"
+          placeholder="Sub Name (English)"
+          className="w-full border border-gray-300 p-3 rounded-lg"
         />
+
+        <input
+          value={subnameHi}
+          onChange={(e) => setSubnameHi(e.target.value)}
+          placeholder="Sub Name (Hindi)"
+          className="w-full border border-gray-300 p-3 rounded-lg"
+        />
+
         <input
           required
           value={price}
           onChange={(e) => setPrice(e.target.value)}
           placeholder="Price"
           type="number"
-          className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-yellow-400"
+          className="w-full border border-gray-300 p-3 rounded-lg"
         />
+
         <input
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          placeholder="Category"
-          className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-yellow-400"
+          placeholder="Category (English)"
+          className="w-full border border-gray-300 p-3 rounded-lg"
         />
 
-        <label className="block border-2 border-dashed border-gray-400 rounded-lg p-4 text-center cursor-pointer hover:border-yellow-400 bg-white">
+        <input
+          value={categoryHi}
+          onChange={(e) => setCategoryHi(e.target.value)}
+          placeholder="Category (Hindi)"
+          className="w-full border border-gray-300 p-3 rounded-lg"
+        />
+
+        <label className="block border-2 border-dashed border-gray-400 rounded-lg p-4 text-center cursor-pointer">
           {file ? (
             <span className="text-green-600 font-medium">{file.name}</span>
           ) : (
@@ -201,24 +246,30 @@ export default function AddMenuItem({ ownerId }) {
 
         <button
           disabled={loading}
-          className="w-full bg-yellow-500 text-white px-4 py-3 rounded-lg hover:bg-yellow-600 transition-all duration-200 font-medium"
+          className="w-full bg-yellow-500 text-white px-4 py-3 rounded-lg hover:bg-yellow-600"
         >
           Add Item
         </button>
       </form>
 
-      {/* ✅ Bulk Upload CSV/Excel */}
+      {/* Bulk Upload */}
       <div className="bg-white p-6 rounded-2xl shadow-xl">
         <h2 className="text-lg font-semibold mb-3">📂 Bulk Upload</h2>
+
         <input
           type="file"
           accept=".csv, .xlsx, .xls"
           onChange={handleBulkUpload}
           className="w-full border p-3 rounded-lg cursor-pointer"
         />
+
         <p className="text-sm text-gray-500 mt-2">
-          Upload a CSV/Excel file with columns:{" "}
-          <b>name, subname, price, category, imageUrl</b>
+          Supported columns:
+          <b>
+            {" "}
+            name, name_hi, subname, subname_hi, price, category, category_hi,
+            imageUrl{" "}
+          </b>
         </p>
       </div>
     </div>
