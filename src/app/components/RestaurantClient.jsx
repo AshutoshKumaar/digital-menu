@@ -17,7 +17,7 @@ import { useCart } from "../hooks/CartContext";
 import BottomNav from "./FixBottom";
 import { useTranslation } from "../i18n/LanguageContext";
 import LanguageSwitcher from "../i18n/LanguageSwitcher";
-
+import ClientNav from "./ClientNav";
 const mooli = Mooli({ weight: "400", subsets: ["latin"] });
 
 export default function RestaurantClient({ ownerId }) {
@@ -74,50 +74,71 @@ export default function RestaurantClient({ ownerId }) {
     load();
   }, [ownerId]);
 
-  // TRANSLATED "ALL"
-  const translatedAll = lang === "hi" ? "सभी" : "all";
+  // -----------------------------
+  // ADDING HINGLISH LANGUAGE SUPPORT
+  // -----------------------------
 
-  // CATEGORY LIST
+  const translatedAll =
+    lang === "hi"
+      ? "सभी"
+      : lang === "hieng"
+      ? "Sabhi"
+      : "all";
+
   const categories = [
     translatedAll,
     ...new Set(
       items.map((item) =>
         lang === "hi"
-          ? item.category_hi || item.category || "अनकैटेगराइज्ड"
-          : item.category || "Uncategorized"
+          ? item.category_hi || item.category
+          : lang === "hieng"
+          ? item.category_hineng || item.category
+          : item.category
       )
     ),
   ];
 
-  // When language changes — update selected category
   useEffect(() => {
-    if (selectedCategory === "all" || selectedCategory === "सभी") {
+    if (
+      selectedCategory === "all" ||
+      selectedCategory === "सभी" ||
+      selectedCategory === "Sabhi"
+    ) {
       setSelectedCategory(translatedAll);
     }
   }, [lang]);
 
-  // FILTER + SEARCH
   const filteredItems = items.filter((item) => {
     const itemCategory =
-      lang === "hi" ? item.category_hi || item.category : item.category;
+      lang === "hi"
+        ? item.category_hi || item.category
+        : lang === "hieng"
+        ? item.category_hineng || item.category
+        : item.category;
 
     const isAll =
-      selectedCategory === "all" || selectedCategory === "सभी";
+      selectedCategory === "all" ||
+      selectedCategory === "सभी" ||
+      selectedCategory === "Sabhi";
 
     const matchCategory = isAll || itemCategory === selectedCategory;
 
     const itemName =
-      lang === "hi" ? item.name_hi || item.name : item.name;
+      lang === "hi"
+        ? item.name_hi || item.name
+        : lang === "hieng"
+        ? item.name_hineng || item.name
+        : item.name;
 
-    const matchSearch =
-      itemName?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchSearch = itemName
+      ?.toLowerCase()
+      .includes(searchTerm.toLowerCase());
 
     return matchCategory && matchSearch;
   });
 
   if (loading) return <RestaurantLoading mooli={mooli} />;
 
-  // Highlight search text
   const highlightText = (text) => {
     if (!searchTerm || !text) return text;
     const regex = new RegExp(`(${searchTerm})`, "gi");
@@ -128,26 +149,27 @@ export default function RestaurantClient({ ownerId }) {
   };
 
   return (
-    <div
-      className={`min-h-screen text-white p-6 pb-20 ${mooli.className}`}
+    <div className={`${mooli.className} min-h-screen`}>
+       <div>
+          <ClientNav />
+       </div>
+       <div
+      className={`min-h-screen text-white p-6 pt-30 pb-20  ${mooli.className}`}
       style={{
         backgroundColor: "#1c1c1c",
         backgroundImage:
           "radial-gradient(circle at top left, rgba(255,255,255,0.05), transparent 50%)",
       }}
     >
-      <div className="flex justify-center mb-6">
-        <LanguageSwitcher />
-      </div>
-
-      {/* HEADER */}
+       
+    
       <div className="text-center mb-6">
         <h1 className="text-5xl font-extrabold">{ownerName}</h1>
         <p className="text-yellow-400 text-lg mt-3">{t("our_menu")}</p>
         <div className="mt-2 w-24 mx-auto border-b-4 border-yellow-500"></div>
       </div>
 
-      {/* SEARCH BAR */}
+      {/* SEARCH */}
       <div className="max-w-md mx-auto mb-6 relative">
         <input
           type="text"
@@ -183,7 +205,12 @@ export default function RestaurantClient({ ownerId }) {
 
           const catItems = filteredItems.filter((i) => {
             const c =
-              lang === "hi" ? i.category_hi || i.category : i.category;
+              lang === "hi"
+                ? i.category_hi || i.category
+                : lang === "hieng"
+                ? i.category_hineng || i.category
+                : i.category;
+
             return c === cat;
           });
 
@@ -201,7 +228,11 @@ export default function RestaurantClient({ ownerId }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {catItems.map((item) => {
                   const itemName =
-                    lang === "hi" ? item.name_hi || item.name : item.name;
+                    lang === "hi"
+                      ? item.name_hi || item.name
+                      : lang === "hieng"
+                      ? item.name_hineng || item.name
+                      : item.name;
 
                   return (
                     <div
@@ -294,7 +325,6 @@ export default function RestaurantClient({ ownerId }) {
         })}
       </div>
 
-      {/* CONTACT */}
       <div className="text-center mt-10 text-yellow-400 text-lg">
         <a
           href={`tel:${ownerPhone}`}
@@ -306,6 +336,7 @@ export default function RestaurantClient({ ownerId }) {
       </div>
 
       {orderingEnabled && <BottomNav ownerId={ownerId} cart={cart} />}
+    </div>
     </div>
   );
 }

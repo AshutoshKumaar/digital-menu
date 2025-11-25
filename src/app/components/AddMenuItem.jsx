@@ -12,19 +12,26 @@ import * as XLSX from "xlsx";
 
 export default function AddMenuItem({ ownerId }) {
   const [name, setName] = useState("");
-  const [nameHi, setNameHi] = useState(""); 
+  const [nameHi, setNameHi] = useState("");
+  const [nameHinEng, setNameHinEng] = useState("");
+
   const [subname, setSubname] = useState("");
-  const [subnameHi, setSubnameHi] = useState(""); 
+  const [subnameHi, setSubnameHi] = useState("");
+  const [subnameHinEng, setSubnameHinEng] = useState("");
+
   const [price, setPrice] = useState("");
-  const [category, setCategory] = useState(""); // English
-  const [categoryHi, setCategoryHi] = useState(""); // 🔥 Hindi Category
+
+  const [category, setCategory] = useState("");
+  const [categoryHi, setCategoryHi] = useState("");
+  const [categoryHinEng, setCategoryHinEng] = useState("");
+
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // 🔥 FULL PAGE LOADING
 
-  // -----------------------------
-  // CSV / Excel Parse
-  // -----------------------------
+  // ----------------------------------------
+  // CSV / Excel FILE PARSING
+  // ----------------------------------------
   const parseFile = async (file) => {
     const ext = file.name.split(".").pop().toLowerCase();
 
@@ -41,21 +48,19 @@ export default function AddMenuItem({ ownerId }) {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
       const sheetName = workbook.SheetNames[0];
-      const worksheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-      return worksheet;
-    } else {
-      throw new Error("Unsupported file type. Please upload CSV or Excel file.");
+      return XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
     }
   };
 
-  // -----------------------------
-  // Bulk Upload
-  // -----------------------------
+  // ----------------------------------------
+  // BULK UPLOAD
+  // ----------------------------------------
   const handleBulkUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setLoading(true);
+
     try {
       const items = await parseFile(file);
 
@@ -63,18 +68,25 @@ export default function AddMenuItem({ ownerId }) {
         await addDoc(collection(db, "owners", ownerId, "menu"), {
           name: item.name || "",
           name_hi: item.name_hi || "",
+          name_hineng: item.name_hineng || "",
+
           subname: item.subname || "",
           subname_hi: item.subname_hi || "",
+          subname_hineng: item.subname_hineng || "",
+
           price: Number(item.price) || 0,
+
           category: item.category || "",
-          category_hi: item.category_hi || "", // 🔥 Hindi category support
+          category_hi: item.category_hi || "",
+          category_hineng: item.category_hineng || "",
+
           imageUrl: item.imageUrl || "",
           available: true,
           createdAt: serverTimestamp(),
         });
       }
 
-      alert(`${items.length} items uploaded successfully ✅`);
+      alert(`${items.length} items uploaded successfully!`);
     } catch (err) {
       alert("Upload Failed ❌ " + err.message);
     } finally {
@@ -83,9 +95,9 @@ export default function AddMenuItem({ ownerId }) {
     }
   };
 
-  // -----------------------------
-  // Single Add Item
-  // -----------------------------
+  // ----------------------------------------
+  // SINGLE ITEM ADD
+  // ----------------------------------------
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!file) return alert("Please select an image");
@@ -110,27 +122,42 @@ export default function AddMenuItem({ ownerId }) {
           await addDoc(collection(db, "owners", ownerId, "menu"), {
             name,
             name_hi: nameHi,
+            name_hineng: nameHinEng,
+
             subname,
             subname_hi: subnameHi,
+            subname_hineng: subnameHinEng,
+
             price: Number(price),
+
             category,
-            category_hi: categoryHi, // 🔥 Save Hindi category
+            category_hi: categoryHi,
+            category_hineng: categoryHinEng,
+
             imageUrl: url,
             available: true,
             createdAt: serverTimestamp(),
           });
 
+          // Reset form
           setName("");
           setNameHi("");
+          setNameHinEng("");
+
           setSubname("");
           setSubnameHi("");
+          setSubnameHinEng("");
+
           setPrice("");
+
           setCategory("");
-          setCategoryHi(""); // reset Hindi category
+          setCategoryHi("");
+          setCategoryHinEng("");
+
           setFile(null);
           setPreview(null);
 
-          alert("Item added successfully ✅");
+          alert("Item added successfully! 🎉");
           setLoading(false);
         }
       );
@@ -141,120 +168,183 @@ export default function AddMenuItem({ ownerId }) {
   };
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    setFile(selectedFile);
-    if (selectedFile) {
-      setPreview(URL.createObjectURL(selectedFile));
-    } else {
-      setPreview(null);
-    }
+    const f = e.target.files[0];
+    setFile(f);
+    if (f) setPreview(URL.createObjectURL(f));
   };
 
+  // ----------------------------------------
+  // FULL SCREEN LOADER
+  // ----------------------------------------
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-600">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-slate-800 mb-4"></div>
-        <p className="text-lg font-medium text-center">
-          Please wait, uploading data...
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="h-14 w-14 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-5 text-xl font-medium text-gray-600">
+          Saving your data...
         </p>
       </div>
     );
   }
 
   return (
-    <div className="relative space-y-8">
-      {/* Single Upload */}
+    <div className="relative space-y-10">
+      {/* FORM */}
       <form
         onSubmit={handleAdd}
-        className="bg-gray-50 p-6 rounded-2xl shadow-xl space-y-4"
+        className="bg-gray-100 p-6 rounded-2xl shadow-xl space-y-6"
       >
-        <input
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Item Name (English)"
-          className="w-full border border-gray-300 p-3 rounded-lg"
-        />
+        {/* 2 Column Grid */}
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* NAME ENGLISH */}
+          <div>
+            <label className="font-semibold text-gray-700">Item Name (English)</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full border p-3 rounded-lg"
+              placeholder="Paneer Tikka"
+            />
+          </div>
 
-        <input
-          value={nameHi}
-          onChange={(e) => setNameHi(e.target.value)}
-          placeholder="Item Name (Hindi)"
-          className="w-full border border-gray-300 p-3 rounded-lg"
-        />
+          {/* NAME HINDI */}
+          <div>
+            <label className="font-semibold text-gray-700">Item Name (Hindi)</label>
+            <input
+              value={nameHi}
+              onChange={(e) => setNameHi(e.target.value)}
+              className="w-full border p-3 rounded-lg"
+              placeholder="पनीर टिक्का"
+            />
+          </div>
 
-        <input
-          value={subname}
-          onChange={(e) => setSubname(e.target.value)}
-          placeholder="Sub Name (English)"
-          className="w-full border border-gray-300 p-3 rounded-lg"
-        />
+          {/* HINGLISH */}
+          <div className="md:col-span-2">
+            <label className="font-semibold text-gray-700">Item Name (Hin-English)</label>
+            <input
+              value={nameHinEng}
+              onChange={(e) => setNameHinEng(e.target.value)}
+              className="w-full border p-3 rounded-lg"
+              placeholder="Paneer Tikka (Hindi-English mix)"
+            />
+          </div>
 
-        <input
-          value={subnameHi}
-          onChange={(e) => setSubnameHi(e.target.value)}
-          placeholder="Sub Name (Hindi)"
-          className="w-full border border-gray-300 p-3 rounded-lg"
-        />
+          {/* SUBNAME ENGLISH */}
+          <div>
+            <label className="font-semibold text-gray-700">Sub Name (English)</label>
+            <input
+              value={subname}
+              onChange={(e) => setSubname(e.target.value)}
+              className="w-full border p-3 rounded-lg"
+              placeholder="Spicy Starter"
+            />
+          </div>
 
-        <input
-          required
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          placeholder="Price"
-          type="number"
-          className="w-full border border-gray-300 p-3 rounded-lg"
-        />
+          {/* SUBNAME HINDI */}
+          <div>
+            <label className="font-semibold text-gray-700">Sub Name (Hindi)</label>
+            <input
+              value={subnameHi}
+              onChange={(e) => setSubnameHi(e.target.value)}
+              className="w-full border p-3 rounded-lg"
+              placeholder="मसालेदार स्टार्टर"
+            />
+          </div>
 
-        <input
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          placeholder="Category (English)"
-          className="w-full border border-gray-300 p-3 rounded-lg"
-        />
+          {/* SUBNAME HINGLISH */}
+          <div className="md:col-span-2">
+            <label className="font-semibold text-gray-700">Sub Name (Hin-English)</label>
+            <input
+              value={subnameHinEng}
+              onChange={(e) => setSubnameHinEng(e.target.value)}
+              className="w-full border p-3 rounded-lg"
+              placeholder="Masaledar Starter"
+            />
+          </div>
 
-        <input
-          value={categoryHi}
-          onChange={(e) => setCategoryHi(e.target.value)}
-          placeholder="Category (Hindi)"
-          className="w-full border border-gray-300 p-3 rounded-lg"
-        />
+          {/* PRICE */}
+          <div className="md:col-span-2">
+            <label className="font-semibold text-gray-700">Price</label>
+            <input
+              type="number"
+              value={price}
+              required
+              onChange={(e) => setPrice(e.target.value)}
+              className="w-full border p-3 rounded-lg"
+            />
+          </div>
 
-        <label className="block border-2 border-dashed border-gray-400 rounded-lg p-4 text-center cursor-pointer">
+          {/* CATEGORY ENGLISH */}
+          <div>
+            <label className="font-semibold text-gray-700">Category (English)</label>
+            <input
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full border p-3 rounded-lg"
+              placeholder="Starters"
+            />
+          </div>
+
+          {/* CATEGORY HINDI */}
+          <div>
+            <label className="font-semibold text-gray-700">Category (Hindi)</label>
+            <input
+              value={categoryHi}
+              onChange={(e) => setCategoryHi(e.target.value)}
+              className="w-full border p-3 rounded-lg"
+              placeholder="स्टार्टर्स"
+            />
+          </div>
+
+          {/* CATEGORY HINGLISH */}
+          <div className="md:col-span-2">
+            <label className="font-semibold text-gray-700">Category (Hin-English)</label>
+            <input
+              value={categoryHinEng}
+              onChange={(e) => setCategoryHinEng(e.target.value)}
+              className="w-full border p-3 rounded-lg"
+              placeholder="Starters (Hin-English)"
+            />
+          </div>
+        </div>
+
+        {/* IMAGE UPLOAD BOX */}
+        <label className="block border-2 border-dashed border-gray-400 rounded-lg p-4 text-center cursor-pointer hover:border-yellow-500 hover:bg-yellow-50 transition-all active:scale-95">
           {file ? (
             <span className="text-green-600 font-medium">{file.name}</span>
           ) : (
-            <span className="text-gray-500">📷 Click to upload image</span>
+            <span className="text-gray-500">📷 Upload Image</span>
           )}
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
+          <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
         </label>
 
         {preview && (
-          <div className="mt-3 flex justify-center">
-            <img
-              src={preview}
-              alt="Preview"
-              className="max-h-40 rounded-lg shadow-md border border-gray-200 object-cover"
-            />
-          </div>
+          <img
+            src={preview}
+            className="max-h-40 rounded-lg mx-auto object-cover mt-3 shadow-md"
+          />
         )}
 
+        {/* SUBMIT BUTTON */}
         <button
           disabled={loading}
-          className="w-full bg-yellow-500 text-white px-4 py-3 rounded-lg hover:bg-yellow-600"
+          className={`w-full cursor-pointer py-3 rounded-lg font-semibold flex items-center justify-center transition-all 
+            ${loading ? "bg-yellow-400 cursor-not-allowed" : "bg-yellow-600 hover:bg-yellow-700 active:scale-95"}`}
         >
-          Add Item
+          {loading ? (
+            <div className="flex items-center gap-3">
+              <span className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              Saving...
+            </div>
+          ) : (
+            "Add Item"
+          )}
         </button>
       </form>
 
-      {/* Bulk Upload */}
+      {/* BULK UPLOAD */}
       <div className="bg-white p-6 rounded-2xl shadow-xl">
-        <h2 className="text-lg font-semibold mb-3">📂 Bulk Upload</h2>
+        <h2 className="text-lg font-semibold mb-2">📂 Bulk Upload</h2>
 
         <input
           type="file"
@@ -263,13 +353,9 @@ export default function AddMenuItem({ ownerId }) {
           className="w-full border p-3 rounded-lg cursor-pointer"
         />
 
-        <p className="text-sm text-gray-500 mt-2">
-          Supported columns:
-          <b>
-            {" "}
-            name, name_hi, subname, subname_hi, price, category, category_hi,
-            imageUrl{" "}
-          </b>
+        <p className="text-sm text-gray-700 mt-2">
+          Supported Columns:
+          <b> name, name_hi, name_hineng, subname, subname_hi, subname_hineng, price, category, category_hi, category_hineng, imageUrl </b>
         </p>
       </div>
     </div>

@@ -38,7 +38,7 @@ const DigitalBharatMenuLogo = ({ className = 'h-16', textColor = 'text-gray-900'
 
         {/* Line 2: BHARAT (Largest, Boldest, Main Brand) */}
         <div className="text-3xl font-extrabold tracking-wider text-orange-600">
-          BHARAT
+          BIHAR
         </div>
         
         {/* Line 3: menu (Standard, descriptive) */}
