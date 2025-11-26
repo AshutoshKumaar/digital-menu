@@ -6,7 +6,7 @@ import { auth } from "../firebase/config";
 import Orders from "./Orders";
 import GenerateQR from "./GenerateQR";
 import OurInfo from "./OurInfo";
-import OwnerSystemToggle from "./PaymentSettings";
+import OwnerOrderPermissions from "./OwnerOrderPermission";
 import OwnerBillPage from "./OwnerBillPage";
 import SalesReport from "./SalesReport";
 
@@ -30,9 +30,9 @@ function OurInfoSection() {
   return <div className="p-4 text-black"><OurInfo ownerId={ownerId} /></div>;
 }
 
-function PaymentSettingsSection() {
+function OwnerOrderPermission() {
   const ownerId = auth.currentUser?.uid;
-  return <div className="p-4 text-black"><OwnerSystemToggle  /></div>;
+  return <div className="p-4 text-black"><OwnerOrderPermissions  /></div>;
 }
 function BillsSection() {
   return <div className="p-4 text-black"><OwnerBillPage /></div>;
@@ -49,6 +49,7 @@ export default function DashboardTabs() {
     { label: "Our Menu", component: <OurMenu /> },
     { label: "Orders", component: <OrdersSection  /> },
     { label: "Generate QR", component: <GenerateQRCode /> },
+    { label: "Setting", component: <OwnerOrderPermission /> },
     { label: "Our Info", component: <OurInfoSection /> },
     { label: "Bills", component: <OwnerBillPage /> },
     { label: "Sales Report", component: <SalesReportSection /> }

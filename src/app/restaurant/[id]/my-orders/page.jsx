@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Mooli } from "next/font/google";
 import { useTranslation } from "@/app/i18n/LanguageContext";
+import ClientNav from "@/app/components/ClientNav";
 
 const mooli = Mooli({ subsets: ["latin"], weight: ["400"] });
 
@@ -77,7 +78,9 @@ export default function UserOrdersPage({ params }) {
   }
 
   return (
-    <div className={`min-h-screen bg-gray-900 text-white ${mooli.className}`}>
+   <div className={`${mooli.className}`}>
+   <ClientNav ownerId={ownerId} />
+     <div className={`min-h-screen bg-gray-900  py-26 text-white ${mooli.className}`}>
       <header className="sticky top-0 bg-gray-900 border-b-2 py-4 px-6 z-10 border-yellow-400">
         <h1 className="text-3xl font-bold text-yellow-400">
           {t("my_orders")}
@@ -148,5 +151,6 @@ export default function UserOrdersPage({ params }) {
 
       <BottomNav ownerId={ownerId} cart={[]} />
     </div>
+   </div>
   );
 }

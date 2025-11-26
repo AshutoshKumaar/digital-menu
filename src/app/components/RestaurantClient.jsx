@@ -79,11 +79,7 @@ export default function RestaurantClient({ ownerId }) {
   // -----------------------------
 
   const translatedAll =
-    lang === "hi"
-      ? "सभी"
-      : lang === "hieng"
-      ? "Sabhi"
-      : "all";
+    lang === "hi" ? "सभी" : lang === "hieng" ? "Sabhi" : "all";
 
   const categories = [
     translatedAll,
@@ -150,193 +146,195 @@ export default function RestaurantClient({ ownerId }) {
 
   return (
     <div className={`${mooli.className} min-h-screen`}>
-       <div>
-          <ClientNav />
-       </div>
-       <div
-      className={`min-h-screen text-white p-6 pt-30 pb-20  ${mooli.className}`}
-      style={{
-        backgroundColor: "#1c1c1c",
-        backgroundImage:
-          "radial-gradient(circle at top left, rgba(255,255,255,0.05), transparent 50%)",
-      }}
-    >
-       
-    
-      <div className="text-center mb-6">
-        <h1 className="text-5xl font-extrabold">{ownerName}</h1>
-        <p className="text-yellow-400 text-lg mt-3">{t("our_menu")}</p>
-        <div className="mt-2 w-24 mx-auto border-b-4 border-yellow-500"></div>
+      <div>
+        <ClientNav />
       </div>
-
-      {/* SEARCH */}
-      <div className="max-w-md mx-auto mb-6 relative">
-        <input
-          type="text"
-          placeholder={t("search_placeholder")}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-[#2a2a2a] border border-gray-600 text-white rounded-lg py-3 px-4 pl-10 focus:ring-2 focus:ring-yellow-500"
-        />
-        <Search className="absolute left-3 top-3.5 text-yellow-400 w-5 h-5" />
-      </div>
-
-      {/* CATEGORY FILTER */}
-      <div className="flex justify-center mb-10">
-        <div className="relative inline-block w-64">
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="block w-full rounded-lg bg-[#2a2a2a] border border-gray-600 text-white py-3 px-4 pr-10"
-          >
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
+      <div
+        className={`min-h-screen text-white p-6 pt-30 pb-20  ${mooli.className}`}
+        style={{
+          backgroundColor: "#1c1c1c",
+          backgroundImage:
+            "radial-gradient(circle at top left, rgba(255,255,255,0.05), transparent 50%)",
+        }}
+      >
+        <div className="text-center mb-6">
+          <h1 className="text-5xl font-extrabold">{ownerName}</h1>
+          <p className="text-yellow-400 text-lg mt-3">{t("our_menu")}</p>
+          <div className="mt-2 w-24 mx-auto border-b-4 border-yellow-500"></div>
         </div>
-      </div>
 
-      {/* MENU ITEMS */}
-      <div className="max-w-full mx-auto space-y-10">
-        {categories.map((cat) => {
-          if (cat === translatedAll) return null;
+        {/* SEARCH */}
+        <div className="max-w-md mx-auto mb-6 relative">
+          <input
+            type="text"
+            placeholder={t("search_placeholder")}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-[#2a2a2a] border border-gray-600 text-white rounded-lg py-3 px-4 pl-10 focus:ring-2 focus:ring-yellow-500"
+          />
+          <Search className="absolute left-3 top-3.5 text-yellow-400 w-5 h-5" />
+        </div>
 
-          const catItems = filteredItems.filter((i) => {
-            const c =
-              lang === "hi"
-                ? i.category_hi || i.category
-                : lang === "hieng"
-                ? i.category_hineng || i.category
-                : i.category;
-
-            return c === cat;
-          });
-
-          if (catItems.length === 0) return null;
-
-          return (
-            <div key={cat}>
-              <div className="flex items-center mb-4">
-                <span className="bg-yellow-500 text-black font-bold px-4 py-1 rounded-full uppercase">
+        {/* CATEGORY FILTER */}
+        <div className="flex justify-center mb-10">
+          <div className="relative inline-block w-64">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="block w-full rounded-lg bg-[#2a2a2a] border border-gray-600 text-white py-3 px-4 pr-10"
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
                   {cat}
-                </span>
-                <div className="flex-1 border-b border-gray-600 ml-3"></div>
-              </div>
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {catItems.map((item) => {
-                  const itemName =
-                    lang === "hi"
-                      ? item.name_hi || item.name
-                      : lang === "hieng"
-                      ? item.name_hineng || item.name
-                      : item.name;
+        {/* MENU ITEMS */}
+        <div className="max-w-full mx-auto space-y-10">
+          {categories.map((cat) => {
+            if (cat === translatedAll) return null;
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="bg-[#1f1f1f] p-4 rounded-2xl shadow-md border border-gray-700"
-                    >
-                      {item.imageUrl && (
-                        <img
-                          src={item.imageUrl}
-                          alt={itemName}
-                          className="w-full h-48 object-cover rounded-xl mb-3"
-                        />
-                      )}
+            const catItems = filteredItems.filter((i) => {
+              const c =
+                lang === "hi"
+                  ? i.category_hi || i.category
+                  : lang === "hieng"
+                  ? i.category_hineng || i.category
+                  : i.category;
 
-                      <h3
-                        className="text-lg font-semibold"
-                        dangerouslySetInnerHTML={{
-                          __html: highlightText(itemName),
-                        }}
-                      ></h3>
+              return c === cat;
+            });
 
-                      <p className="text-yellow-400 font-bold mt-1">
-                        ₹{item.price}
-                      </p>
+            if (catItems.length === 0) return null;
 
-                      {item.available ? (
-                        <p className="text-green-400 font-semibold mt-1">
-                          {t("available")}
-                        </p>
-                      ) : (
-                        <p className="text-red-400 font-semibold mt-1">
-                          {t("not_available")}
-                        </p>
-                      )}
+            return (
+              <div key={cat}>
+                <div className="flex items-center mb-4">
+                  <span className="bg-yellow-500 text-black font-bold px-4 py-1 rounded-full uppercase">
+                    {cat}
+                  </span>
+                  <div className="flex-1 border-b border-gray-600 ml-3"></div>
+                </div>
 
-                      {orderingEnabled && (
-                        <div className="flex gap-2 mt-3">
-                          <input
-                            type="number"
-                            min="1"
-                            defaultValue="1"
-                            id={`qty-${item.id}`}
-                            className="w-16 h-10 bg-[#111] border border-gray-500 text-center text-white rounded-lg"
-                            disabled={!item.available}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {catItems.map((item) => {
+                    const itemName =
+                      lang === "hi"
+                        ? item.name_hi || item.name
+                        : lang === "hieng"
+                        ? item.name_hineng || item.name
+                        : item.name;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-[#1f1f1f] p-4 rounded-2xl shadow-md border border-gray-700"
+                      >
+                        {item.imageUrl && (
+                          <img
+                            src={item.imageUrl}
+                            alt={itemName}
+                            className="w-full h-48 object-cover rounded-xl mb-3"
                           />
+                        )}
 
-                          {!item.available ? (
-                            <button
-                              disabled
-                              className="h-10 w-full bg-gray-600 text-white rounded-lg opacity-60 cursor-not-allowed"
-                            >
-                              {t("not_available")}
-                            </button>
-                          ) : cart.find((c) => c.id === item.id) ? (
-                            <button
-                              disabled
-                              className="h-10 w-full bg-green-600 text-white rounded-lg opacity-80"
-                            >
-                              {t("added")}
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                const qty =
-                                  parseInt(
-                                    document.getElementById(`qty-${item.id}`)
-                                      .value
-                                  ) || 1;
+                        <h3
+                          className="text-lg font-semibold"
+                          dangerouslySetInnerHTML={{
+                            __html: highlightText(itemName),
+                          }}
+                        ></h3>
 
-                                addToCart({
-                                  id: item.id,
-                                  name: itemName,
-                                  price: item.price,
-                                  quantity: qty,
-                                });
-                              }}
-                              className="h-10 w-full bg-yellow-500 text-black rounded-lg"
-                            >
-                              {t("add")}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        <p className="text-yellow-400 font-bold mt-1">
+                          ₹{item.price}
+                        </p>
+
+                        {item.available ? (
+                          <p className="text-green-400 font-semibold mt-1">
+                            {t("available")}
+                          </p>
+                        ) : (
+                          <p className="text-red-400 font-semibold mt-1">
+                            {t("not_available")}
+                          </p>
+                        )}
+
+                        {orderingEnabled && (
+                          <div className="flex gap-2 mt-3">
+                            <input
+                              type="number"
+                              min="1"
+                              defaultValue="1"
+                              id={`qty-${item.id}`}
+                              className="w-16 h-10 bg-[#111] border border-gray-500 text-center text-white rounded-lg"
+                              disabled={!item.available}
+                            />
+
+                            {!item.available ? (
+                              <button
+                                disabled
+                                className="h-10 w-full bg-gray-600 text-white rounded-lg opacity-60 cursor-not-allowed"
+                              >
+                                {t("not_available")}
+                              </button>
+                            ) : cart.find((c) => c.id === item.id) ? (
+                              <button
+                                disabled
+                                className="h-10 w-full bg-green-600 text-white rounded-lg opacity-80"
+                              >
+                                {t("added")}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  const qty =
+                                    parseInt(
+                                      document.getElementById(`qty-${item.id}`)
+                                        .value
+                                    ) || 1;
+
+                                  addToCart({
+                                    id: item.id,
+                                    name: item.name,
+                                    name_hi: item.name_hi || "",
+                                    name_hineng: item.name_hineng || "",
+                                    price: item.price,
+                                    quantity: qty,
+                                  });
+                                }}
+                                className="h-10 w-full bg-yellow-500 text-black rounded-lg"
+                              >
+                                {t("add")}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
 
-      <div className="text-center mt-10 text-yellow-400 text-lg">
-        <a
-          href={`tel:${ownerPhone}`}
-          className="flex items-center justify-center gap-2"
-        >
-          <Phone className="w-5 h-5" />
-          <span>{t("call")} +{ownerPhone}</span>
-        </a>
-      </div>
+        <div className="text-center mt-10 text-yellow-400 text-lg">
+          <a
+            href={`tel:${ownerPhone}`}
+            className="flex items-center justify-center gap-2"
+          >
+            <Phone className="w-5 h-5" />
+            <span>
+              {t("call")} +{ownerPhone}
+            </span>
+          </a>
+        </div>
 
-      {orderingEnabled && <BottomNav ownerId={ownerId} cart={cart} />}
-    </div>
+        {orderingEnabled && <BottomNav ownerId={ownerId} cart={cart} />}
+      </div>
     </div>
   );
 }
