@@ -198,6 +198,48 @@ export default function CheckoutClient({ ownerId }) {
 
       const docRef = await addDoc(collection(db, "orders"), newOrder);
 
+      // Send Your Order for Whatsapp Notification
+
+      // --- WhatsApp Send Logic ---
+
+      // Company ka WhatsApp number (yaha apna number daal do)
+      const companyNumber = "919693331959"; // ← India format me without +
+
+      // Order type ke hisaab se number choose hoga
+      const whatsappNumber =
+        orderType === "inside" ? owner.ownerMobile : companyNumber;
+
+      // WhatsApp message
+      const message = `
+🍽️ New Order Received!
+
+🆔 Order ID: ${docRef.id}
+👤 Name: ${formData.name}
+📞 Phone: ${formData.number}
+📍 Order Type: ${orderType}
+
+🛒 Items:
+${cart
+  .map((item) => `${item.name} x ${item.quantity} = ₹${item.totalPrice}`)
+  .join("\n")}
+
+💰 Subtotal: ₹${subtotal}
+🚚 Delivery: ₹${deliveryCharge}
+💵 Total: ₹${total}
+`;
+
+      const encodedMessage = encodeURIComponent(message);
+
+      // WhatsApp open karega (auto-send nahi hota)
+      window.open(
+        `https://wa.me/${whatsappNumber}?text=${encodedMessage}`,
+        "_blank"
+      );
+
+      // --- END WhatsApp Logic ---
+
+      // Reward Calculation
+
       const rewardData = await addRewardOnOrder(docRef.id);
       setReward({
         rupees: rewardData?.rupees || 0,
