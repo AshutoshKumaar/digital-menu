@@ -212,18 +212,15 @@ export default function CheckoutClient({ ownerId }) {
 
       // WhatsApp message
       const message = `
-🍽️ New Order Received!
-
-
+🍽️ New Order!
 👤 Name: ${formData.name}
  ${orderType === "outside" ? `📞 Phone: ${formData.number}` : ""}
  ${orderType === "inside" ? ` Table: ${formData.table}` : ""}
-
 🛒 Items:
-${cart
+   ${cart
           .map((item) => `${item.name} x ${item.quantity} = ₹${item.totalPrice}`)
-          .join("\n")}
-
+          .join("\n")
+  }
 💰 Total: ₹${subtotal}
 
 `;
