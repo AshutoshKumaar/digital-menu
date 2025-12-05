@@ -22,6 +22,7 @@ import { addRewardOnOrder } from "../utils/AddRewardOnOrder";
 import PhoneLinkModal from "./PhoneLinkModal";
 import { useTranslation } from "@/app/i18n/LanguageContext";
 import ClientNav from "./ClientNav";
+import { FaWhatsapp } from 'react-icons/fa'
 
 const mooli = Mooli({ weight: "400", subsets: ["latin"] });
 
@@ -118,8 +119,8 @@ export default function CheckoutClient({ ownerId }) {
     const a =
       Math.sin(dLat / 2) ** 2 +
       Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
@@ -213,19 +214,18 @@ export default function CheckoutClient({ ownerId }) {
       const message = `
 🍽️ New Order Received!
 
-🆔 Order ID: ${docRef.id}
+
 👤 Name: ${formData.name}
-📞 Phone: ${formData.number}
-📍 Order Type: ${orderType}
+ ${orderType === "outside" ? `📞 Phone: ${formData.number}` : ""}
+ ${orderType === "inside" ? ` Table: ${formData.table}` : ""}
 
 🛒 Items:
 ${cart
-  .map((item) => `${item.name} x ${item.quantity} = ₹${item.totalPrice}`)
-  .join("\n")}
+          .map((item) => `${item.name} x ${item.quantity} = ₹${item.totalPrice}`)
+          .join("\n")}
 
-💰 Subtotal: ₹${subtotal}
-🚚 Delivery: ₹${deliveryCharge}
-💵 Total: ₹${total}
+💰 Total: ₹${subtotal}
+
 `;
 
       const encodedMessage = encodeURIComponent(message);
@@ -313,9 +313,8 @@ ${cart
               <div className="flex items-center justify-between cursor-pointer">
                 <h2 className="text-lg font-bold">{t("order_details")}</h2>
                 <ShoppingBag
-                  className={`w-6 h-6 text-yellow-400 transition-transform ${
-                    showDetails ? "rotate-180" : "rotate-0"
-                  }`}
+                  className={`w-6 h-6 text-yellow-400 transition-transform ${showDetails ? "rotate-180" : "rotate-0"
+                    }`}
                 />
               </div>
 
@@ -334,8 +333,8 @@ ${cart
                           lang === "hi"
                             ? item.name_hi || item.name
                             : lang === "hieng"
-                            ? item.name_hineng || item.name
-                            : item.name;
+                              ? item.name_hineng || item.name
+                              : item.name;
 
                         return (
                           <div
@@ -505,14 +504,22 @@ ${cart
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full bg-yellow-500 text-black px-6 py-2 rounded-lg font-semibold hover:opacity-60 flex justify-center items-center space-x-2 ${
-                    loading ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  className={`w-full bg-yellow-400  text-black px-6 py-3 rounded-xl font-semibold 
+    hover:bg-yellow-300 flex justify-center items-center gap-3 
+    shadow-[0_4px_10px_rgba(0,0,0,0.25)] transition-all duration-200 ${loading ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                 >
-                  {loading && (
-                    <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></span>
+                  {loading ? (
+                    <>
+                      <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></span>
+                      <span>{t("placing_order")}</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaWhatsapp className="w-6 h-6 text-green-700 drop-shadow-sm" />
+                      <span className="text-lg tracking-wide">{t("place_order")}</span>
+                    </>
                   )}
-                  <span>{loading ? t("placing_order") : t("place_order")}</span>
                 </button>
               </form>
             )}

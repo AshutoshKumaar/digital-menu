@@ -4,7 +4,20 @@ import React from "react";
 import DigitalBharatMenuLogo from "./DigitalBharatMenuLogo";
 import LanguageSwitcher from "../i18n/LanguageSwitcher";
 
-function ClientNav() {
+function ClientNav({ ownerId }) {
+
+  // const goToRestaurant = () => {
+  //   const currentUrl = window.location.pathname;
+  //   console.log("Current URL:", currentUrl);
+  //   const targetUrl = `/restaurant/${ownerId}`;
+
+  //   // ✔ If already on same restaurant page → do nothing
+  //   if (currentUrl === targetUrl) return;
+
+  //   // ✔ Otherwise redirect
+  //   window.location.href = targetUrl;
+  // };
+
   return (
     <div
       className="
@@ -25,8 +38,8 @@ function ClientNav() {
       "
     >
       {/* Left Side Logo */}
-      <div >
-        <DigitalBharatMenuLogo  />
+      <div className="cursor-pointer">
+        <DigitalBharatMenuLogo />
       </div>
 
       {/* Right Side Language Switcher */}
