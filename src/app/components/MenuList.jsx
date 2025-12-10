@@ -167,7 +167,7 @@ export default function MenuList({ ownerId }) {
       {/* ✏️ Edit Modal */}
       {editingItem && (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl p-6 w-96 shadow-2xl animate-[fadeIn_0.3s_ease]">
+          <div className="bg-white rounded-xl p-6 w-96 overflow-y-auto h-[90%] shadow-2xl animate-[fadeIn_0.3s_ease]">
             <h2 className="text-lg font-semibold mb-4">Edit Item</h2>
 
             {/* Image Preview */}

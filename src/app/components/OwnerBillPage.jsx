@@ -8,8 +8,9 @@ export default function ThermalBillPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [previewOrder, setPreviewOrder] = useState(null); // 🔵 For modal preview
 
-  // 🔹 Track logged-in user
+  // TRACK LOGGED-IN USER
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -18,7 +19,7 @@ export default function ThermalBillPage() {
     return () => unsubscribeAuth();
   }, []);
 
-  // 🔹 Fetch user-specific orders
+  // FETCH USER ORDERS
   useEffect(() => {
     if (!user) return;
     setLoading(true);
@@ -47,64 +48,67 @@ export default function ThermalBillPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // ✅ Download as PDF (print with auto-download)
-  const handleDownload = (orderId) => {
-    const printContent = document.getElementById(orderId);
-    if (!printContent) {
-      alert("No content found to download!");
-      return;
-    }
+  // -------------------------------------
+  // 🔵 PREMIUM PRINT FUNCTION
+  // -------------------------------------
+  const handlePrint = () => {
+    const content = document.getElementById("bill-preview-content");
+
+    if (!content) return alert("Nothing to print!");
 
     const printWindow = window.open("", "_blank", "width=300,height=600");
-    if (!printWindow) {
-      alert("Please allow pop-ups for this site.");
-      return;
-    }
+    const logoURL = "https://online.kfc.co.in/static/media/kfcLogo.492728c6.svg";
 
-    printWindow.document.open();
     printWindow.document.write(`
       <html>
-        <head>
-          <title>Bill #${orderId}</title>
-          <style>
-            body {
-              font-family: monospace;
-              width: 80mm;
-              margin: 0;
-              padding: 4px;
-            }
+      <head>
+      <title>Print Bill</title>
 
-            @media print {
-              @page {
-                size: 100mm auto;
-                margin: 0;
-              }
-              button { display: none; }
-            }
+      <style>
+        body { font-family: monospace; width: 80mm; padding: 6px; }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .line { border-bottom: 1px dashed #000; margin: 6px 0; }
 
-            .center { text-align: center; }
-            .bold { font-weight: bold; }
-            .line { border-bottom: 1px dashed #000; margin: 4px 0; }
-            .item { display: flex; justify-content: space-between; }
-            .total-line { font-weight: bold; }
-            .small { font-size: 11px; }
-          </style>
-        </head>
-        <body>
-          ${printContent.innerHTML}
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(() => window.close(), 800);
-            }
-          </script>
-        </body>
+        .row {
+          display: flex;
+          justify-content: space-between;
+          font-size: 12px;
+          margin-bottom: 3px;
+        }
+        .item { width: 50%; font-weight: bold; }
+        .qty { width: 15%; text-align: center; }
+        .total { width: 25%; text-align: right; }
+
+        img { max-width: 60px; margin-bottom: 4px; }
+
+        @media print { 
+            @page { size: 80mm auto; margin: 0; }
+        }
+      </style>
+
+      </head>
+      <body>
+        ${content.innerHTML}
+
+        <script>
+          window.onload = () => {
+            window.print();
+            setTimeout(() => window.close(), 800);
+          };
+        </script>
+
+      </body>
       </html>
     `);
+
     printWindow.document.close();
   };
 
-  // 🔹 Loading state
+  // -------------------------------------
+  // UI
+  // -------------------------------------
+
   if (loading)
     return (
       <div className="flex flex-col items-center text-gray-600 mt-10">
@@ -113,124 +117,138 @@ export default function ThermalBillPage() {
       </div>
     );
 
-  // 🔹 User not logged in
   if (!user)
     return (
       <p className="text-center mt-5 text-2xl">Please login to see bills.</p>
     );
 
-  // 🔹 Main return
   return (
-    <div className="max-w-full sm:max-w-md mx-auto mt-6 px-4">
+    <div className="max-w-full sm:max-w-[90%] mx-auto mt-6 px-4">
       <h2 className="text-2xl font-semibold text-center mb-4">
-        Thermal Receipts
+        Premium Thermal Bills
       </h2>
+
+      {/* ------------------------
+          PREMIUM PREVIEW MODAL
+      ------------------------- */}
+      {previewOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white w-80 rounded-lg shadow-lg p-4">
+            <h3 className="text-center font-bold text-lg mb-2">Bill Preview</h3>
+
+            {/* Actual Bill Content (used for print also) */}
+            <div id="bill-preview-content" className="text-xs">
+
+              <div className="center">
+                <img
+                  src="https://online.kfc.co.in/static/media/kfcLogo.492728c6.svg"
+                  className="w-16 mx-auto mb-2"
+                />
+              </div>
+
+              <div className="center bold">OMG KFC Z-II</div>
+              <div className="center">New Market Road</div>
+              <div className="center">Near Parkash Talkies</div>
+              <div className="center">Phone: +918210707539</div>
+
+              <div className="line"></div>
+
+              <p>Order Type: {previewOrder.orderType}</p>
+              <p>
+                Date:{" "}
+                {new Date(
+                  previewOrder.createdAt?.seconds * 1000
+                ).toLocaleString("en-GB")}
+              </p>
+
+              <div className="line"></div>
+
+              <div className="row bold">
+                <span className="item">ITEM</span>
+                <span className="qty">QTY</span>
+                <span className="total">TOTAL</span>
+              </div>
+
+              {previewOrder.items?.map((item, i) => (
+                <div key={i} className="row">
+                  <span className="item">{item.name}</span>
+                  <span className="qty">{item.quantity}</span>
+                  <span className="total">₹{item.totalPrice}</span>
+                </div>
+              ))}
+
+              <div className="line"></div>
+
+              <div className="row bold">
+                <span className="item">Subtotal</span>
+                <span className="qty"></span>
+                <span className="total">₹{previewOrder.subtotal}</span>
+              </div>
+
+              <div className="row bold">
+                <span className="item">Delivery</span>
+                <span className="qty"></span>
+                <span className="total">₹{previewOrder.deliveryCharge}</span>
+              </div>
+
+              <div className="row bold text-lg">
+                <span className="item">TOTAL</span>
+                <span className="qty"></span>
+                <span className="total">₹{previewOrder.total}</span>
+              </div>
+
+              <div className="line"></div>
+
+              <div className="center bold">Thank You</div>
+              <div className="center">Visit Again!</div>
+            </div>
+
+            {/* BUTTONS */}
+            <div className="flex justify-between mt-4">
+              <button
+                onClick={() => setPreviewOrder(null)}
+                className="px-3 py-1 bg-gray-300 rounded"
+              >
+                Close
+              </button>
+
+              <button
+                onClick={handlePrint}
+                className="px-3 py-1 bg-blue-600 text-white rounded"
+              >
+                🖨 Print
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------
+              ORDERS LIST
+      ------------------------- */}
 
       {orders.length === 0 ? (
         <p className="text-center text-gray-500 text-xl">No orders found.</p>
       ) : (
-        <div className="space-y-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 space-y-6">
           {orders.map((order) => (
             <div
               key={order.id}
-              id={order.id}
               className="bg-white rounded shadow p-3 border text-xs"
             >
-              {/* ---------- HEADER ---------- */}
-              <div className="text-center bold">
-                <p className="bold text-base">OMG KFC Z-II</p>
-                <p className="small">Address: New Market Road</p>
-                <p className="small">Near Parkash Talkies</p>
-                <p className="small">Phone: +918210707539</p>
-                <p className="small">web: kfczaika@gmail.com</p>
-              </div>
+              <div className="font-semibold text-sm sm:text-lg mb-2">Order Summary</div>
 
-              <div className="border-b-2 my-2"></div>
+              <p>Order Type: {order.orderType}</p>
+              <p>Total: ₹{order.total}</p>
 
-              {/* ---------- ORDER DETAILS ---------- */}
-              <div className="">
-                <p>Bill No: default</p>
-                <p>Order type: {order.orderType}</p>
-                <p>
-                  Date:{" "}
-                  {new Date(order.createdAt?.seconds * 1000).toLocaleDateString(
-                    "en-GB"
-                  )}
-                </p>
-              </div>
-
-              <div className="border-b-2 my-2"></div>
-
-              {/* ---------- ITEMS TABLE ---------- */}
-              {order.items?.length > 0 ? (
-                <div>
-                  <div className="flex justify-between font-semibold border-b border-dashed border-black pb-1 mb-1 text-xs">
-                    <span style={{ width: "20%", textAlign: "left" }}>QTY</span>
-                    <span style={{ width: "60%", textAlign: "center" }}>
-                      ITEM
-                    </span>
-                    <span style={{ width: "20%", textAlign: "right" }}>
-                      PRICE
-                    </span>
-                  </div>
-
-                  {order.items.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="flex justify-between small border-b border-dashed border-black py-0.5"
-                      style={{ fontSize: "12px", marginBottom: "2px" }}
-                    >
-                      <span style={{ width: "20%", textAlign: "left" }}>
-                        {item.quantity}
-                      </span>
-                      <span style={{ width: "60%", textAlign: "center" }}>
-                        {item.name}
-                      </span>
-                      <span style={{ width: "20%", textAlign: "right" }}>
-                        ₹{item.totalPrice?.toFixed(2) ?? 0}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="small">No items found</p>
-              )}
-
-              <div className="line my-2"></div>
-
-              {/* ---------- TOTALS ---------- */}
-              <div className="text-right">
-                <span>Subtotal :- </span>
-                <span>&nbsp;₹&nbsp;{order.subtotal?.toFixed(2) ?? 0}</span>
-              </div>
-
-              <div className="text-right border-b border-dashed border-black py-0.5 mb-1">
-                <span>Delivery Charge :-</span>
-                <span>&nbsp;₹&nbsp;{order.deliveryCharge?.toFixed(2) ?? 0}</span>
-              </div>
-
-              <div className="text-right total-line">
-                <span>Total :-</span>
-                <span>&nbsp;₹&nbsp;{order.total?.toFixed(2) ?? 0}</span>
-              </div>
-
-              <div className="border-b border-dashed border-black mb-1 py-0.5"></div>
-
-              {/* ---------- FOOTER ---------- */}
-              <div className="text-center my-2">
-                <p className="text-sm font-bold">Thank You</p>
-                <p className="text-[10px]">Visit Again!</p>
-              </div>
-
-              
-              {/* <div className="mt-2 flex justify-end">
+              <div className="mt-3 flex justify-center sm:justify-end">
                 <button
-                  onClick={() => handleDownload(order.id)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+                  onClick={() => setPreviewOrder(order)}
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-xs"
                 >
-                  🧾 Download Bill
+                  👁️ Preview Bill
                 </button>
-              </div> */}
+              </div>
             </div>
           ))}
         </div>

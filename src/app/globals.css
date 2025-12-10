@@ -17,3 +17,31 @@ body {
   color: var(--foreground);
   
 }
+
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+
+.col {
+  display: inline-block;
+}
+
+.item {
+  width: 50%;   /* Item Name */
+  text-align: left;
+  font-weight: bold;
+}
+
+.qty {
+  width: 15%;   /* Quantity */
+  text-align: center;
+}
+
+.total {
+  width: 25%;   /* Item Total */
+  text-align: right;
+}
